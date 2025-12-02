@@ -1,0 +1,46 @@
+﻿@page "/categorias/criar"
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Nova Categoria</h3>
+
+<div class="row">
+    <div class="col-md-6">
+        <EditForm Model="categoria" OnValidSubmit="GuardarCategoria">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label>Nome da Categoria:</label>
+                <InputText class="form-control" @bind-Value="categoria.Nome" />
+            </div>
+
+            <div class="mb-3">
+                <label>Descrição:</label>
+                <InputTextArea class="form-control" @bind-Value="categoria.Descricao" />
+            </div>
+
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a href="/categorias" class="btn btn-secondary">Cancelar</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    // Objeto vazio para preencher no formulário
+    private Categoria categoria = new Categoria();
+
+    private async Task GuardarCategoria()
+    {
+        // 1. Adiciona à tabela
+        Context.Categorias.Add(categoria);
+
+        // 2. Grava na Base de Dados
+        await Context.SaveChangesAsync();
+
+        // 3. Volta para a lista
+        Navigation.NavigateTo("/categorias");
+    }
+}

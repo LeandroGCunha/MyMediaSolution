@@ -35,7 +35,7 @@ namespace MyMedia.Data.Entities
         public virtual Categoria Categoria { get; set; }
 
         // Quem está a vender? (O Fornecedor)
-        public string FornecedorId { get; set; }
+        public string? FornecedorId { get; set; }
         public virtual ApplicationUser Fornecedor { get; set; }
     }
 

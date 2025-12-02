@@ -268,7 +268,6 @@ namespace MyMedia.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FornecedorId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("IsAtivo")
@@ -364,9 +363,7 @@ namespace MyMedia.Data.Migrations
 
                     b.HasOne("MyMedia.Data.Entities.ApplicationUser", "Fornecedor")
                         .WithMany()
-                        .HasForeignKey("FornecedorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("FornecedorId");
 
                     b.Navigation("Categoria");
 

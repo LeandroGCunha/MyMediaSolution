@@ -1,0 +1,61 @@
+﻿@page "/categorias"
+@using Microsoft.EntityFrameworkCore
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Gestão de Categorias</h3>
+
+<div class="mb-3">
+    <a href="/categorias/criar" class="btn btn-primary">Nova Categoria</a>
+</div>
+
+@if (listaCategorias == null)
+{
+    <p><em>A carregar dados...</em></p>
+}
+else if (!listaCategorias.Any())
+{
+    <p>Não existem categorias registadas.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cat in listaCategorias)
+            {
+                <tr>
+                    <td>@cat.Id</td>
+                    <td>@cat.Nome</td>
+                    <td>@cat.Descricao</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning">Editar</button>
+                        <button class="btn btn-sm btn-danger">Apagar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    // Lista para guardar os dados que vêm da BD
+    private List<Categoria>? listaCategorias;
+
+    // Este método corre assim que a página abre
+    protected override async Task OnInitializedAsync()
+    {
+        // Vai à BD buscar todas as categorias
+        listaCategorias = await Context.Categorias.ToListAsync();
+    }
+}

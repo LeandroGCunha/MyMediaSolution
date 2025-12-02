@@ -1,0 +1,98 @@
+﻿@page "/produtos/criar"
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Novo Produto</h3>
+
+<div class="row">
+    <div class="col-md-8">
+        <EditForm Model="produto" OnValidSubmit="GuardarProduto">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label>Título:</label>
+                <InputText class="form-control" @bind-Value="produto.Titulo" />
+            </div>
+            <div class="mb-3">
+                <label>Descrição Detalhada:</label>
+                <InputTextArea class="form-control" @bind-Value="produto.Descricao" />
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Tipo (Ex: CD, DVD, Livro):</label>
+                    <InputText class="form-control" @bind-Value="produto.Tipo" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Stock Inicial:</label>
+                    <InputNumber class="form-control" @bind-Value="produto.Stock" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label>Categoria:</label>
+                <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
+                    <option value="">-- Selecione uma Categoria --</option>
+                    @if (listaCategorias != null)
+                    {
+                        foreach (var cat in listaCategorias)
+                        {
+                            <option value="@cat.Id">@cat.Nome</option>
+                        }
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="row bg-light p-3 border rounded mb-3">
+                <div class="col-md-4">
+                    <label>Preço Base (€):</label>
+                    <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
+                </div>
+                <div class="col-md-4">
+                    <label>Margem de Lucro (0.10 = 10%):</label>
+                    <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
+                </div>
+                <div class="col-md-4 pt-4">
+                    <p>
+                        Estimativa Final: <strong>
+                            @((produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro)).ToString("C"))
+                        </strong>
+                    </p>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success">Guardar Produto</button>
+            <a href="/produtos" class="btn btn-secondary">Cancelar</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Produto produto = new Produto();
+    private List<Categoria> listaCategorias = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Precisamos carregar as categorias para preencher a Dropdown
+        listaCategorias = await Context.Categorias.ToListAsync();
+
+        // Define valores padrão
+        produto.IsAtivo = true; // Por defeito entra como ativo (pode mudar a regra depois)
+    }
+
+    private async Task GuardarProduto()
+    {
+        // 1. APLICAR REGRA DE NEGÓCIO: Calcular o Preço Final
+        // Fórmula: Base + (Base * Margem)
+        produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
+
+        // 2. Gravar
+        Context.Produtos.Add(produto);
+        await Context.SaveChangesAsync();
+
+        Navigation.NavigateTo("/produtos");
+    }
+}

@@ -1,0 +1,73 @@
+﻿@page "/produtos"
+@using Microsoft.EntityFrameworkCore
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@inject ApplicationDbContext Context
+@rendermode InteractiveServer
+
+<h3>Gestão de Produtos</h3>
+
+<div class="mb-3">
+    <a href="/produtos/criar" class="btn btn-primary">Novo Produto</a>
+</div>
+
+@if (listaProdutos == null)
+{
+    <p>A carregar...</p>
+}
+else if (!listaProdutos.Any())
+{
+    <p>Não há produtos registados.</p>
+}
+else
+{
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Título</th>
+                <th>Categoria</th>
+                <th>Preço Base</th>
+                <th>Margem (%)</th>
+                <th>Preço Final</th>
+                <th>Stock</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in listaProdutos)
+            {
+                <tr>
+                    <td>@p.Titulo</td>
+                    <td>@p.Categoria?.Nome</td>
+                    <td>@p.PrecoBase.ToString("C")</td>
+                    <td>@p.MargemLucro %</td>
+                    <td><strong>@p.PrecoFinal.ToString("C")</strong></td>
+                    <td>@p.Stock</td>
+                    <td>
+                        @if (p.IsAtivo)
+                        {
+                            <span class="badge bg-success">Ativo</span>
+                        }
+                        else
+                        {
+
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Produto>? listaProdutos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // O .Include(p => p.Categoria) é OBRIGATÓRIO para mostrar o nome da categoria
+        listaProdutos = await Context.Produtos
+            .Include(p => p.Categoria)
+            .ToListAsync();
+    }
+}
