@@ -1,0 +1,62 @@
+﻿@page "/"
+@page "/catalogo"
+@using MyMedia.Data.Entities
+@using MyMedia.Client.RCL.Services
+@inject ClientProdutoService ProdutoService
+
+<PageTitle>Catálogo MyMedia</PageTitle>
+
+<div class="container mt-4">
+    <h2 class="mb-4">Destaques da Loja</h2>
+
+    @if (produtos == null)
+    {
+        <div class="alert alert-info">A carregar produtos da API...</div>
+    }
+    else if (!produtos.Any())
+    {
+        <div class="alert alert-warning">Nenhum produto disponível de momento.</div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var p in produtos)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-dark text-white text-center">
+                            <i class="bi bi-disc" style="font-size: 2rem;"></i>
+                        </div>
+
+                        <div class="card-body">
+                            <h5 class="card-title">@p.Titulo</h5>
+                            <p class="card-text text-muted">@p.Categoria?.Nome</p>
+                            <h4 class="text-primary">@p.PrecoFinal.ToString("C")</h4>
+                        </div>
+
+                        <div class="card-footer bg-white border-top-0">
+                            <button class="btn btn-outline-primary w-100">Ver Detalhes</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Produto>? produtos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Chama o serviço que criámos no passo anterior
+            produtos = await ProdutoService.GetProdutosAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao ligar à API: {ex.Message}");
+        }
+    }
+}

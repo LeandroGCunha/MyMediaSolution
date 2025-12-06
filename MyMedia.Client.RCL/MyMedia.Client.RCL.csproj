@@ -15,4 +15,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.21" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MyMedia.Data\MyMedia.Data.csproj" />
+  </ItemGroup>
+
 </Project>
