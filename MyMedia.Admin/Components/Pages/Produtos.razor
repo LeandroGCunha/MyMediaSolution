@@ -3,6 +3,7 @@
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @inject ApplicationDbContext Context
+@inject IJSRuntime JS  // <--- Injeção necessária para o Popup de confirmação
 @rendermode InteractiveServer
 
 <h3>Gestão de Produtos</h3>
@@ -13,51 +14,56 @@
 
 @if (listaProdutos == null)
 {
-    <p>A carregar...</p>
+        <p>A carregar...</p>
 }
 else if (!listaProdutos.Any())
 {
-    <p>Não há produtos registados.</p>
+        <p>Não há produtos registados.</p>
 }
 else
 {
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Título</th>
-                <th>Categoria</th>
-                <th>Preço Base</th>
-                <th>Margem (%)</th>
-                <th>Preço Final</th>
-                <th>Stock</th>
-                <th>Estado</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var p in listaProdutos)
-            {
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
                 <tr>
-                    <td>@p.Titulo</td>
-                    <td>@p.Categoria?.Nome</td>
-                    <td>@p.PrecoBase.ToString("C")</td>
-                    <td>@p.MargemLucro %</td>
-                    <td><strong>@p.PrecoFinal.ToString("C")</strong></td>
-                    <td>@p.Stock</td>
-                    <td>
-                        @if (p.IsAtivo)
-                        {
-                            <span class="badge bg-success">Ativo</span>
-                        }
-                        else
-                        {
+                    <th>Título</th>
+                    <th>Categoria</th>
+                    <th>Preço Final</th>
+                    <th>Stock</th>
+                    <th>Estado</th>
+                    <th>Ações</th> </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in listaProdutos)
+                {
+                        <tr>
+                            <td>@p.Titulo</td>
+                            <td>@p.Categoria?.Nome</td>
+                            <td><strong>@p.PrecoFinal.ToString("C")</strong></td>
+                            <td>@p.Stock</td>
+                            <td>
+                                @if (p.IsAtivo)
+                                {
+                                    <span class="badge bg-success">Ativo</span>
+                                }
+                                else
+                                {
 
-                            <span class="badge bg-warning text-dark">Pendente</span>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                                    <span class="badge bg-warning text-dark">Pendente</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="/produtos/editar/@p.Id" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ApagarProduto(p)">
+                                    <i class="bi bi-trash"></i> Apagar
+                                </button>
+                            </td>
+                        </tr>
+                }
+            </tbody>
+        </table>
 }
 
 @code {
@@ -65,9 +71,42 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // O .Include(p => p.Categoria) é OBRIGATÓRIO para mostrar o nome da categoria
+        await CarregarProdutos();
+    }
+
+    // --- CERTIFIQUE-SE QUE ESTE MÉTODO SÓ APARECE UMA VEZ ---
+    private async Task CarregarProdutos()
+    {
         listaProdutos = await Context.Produtos
             .Include(p => p.Categoria)
+            .AsNoTracking()
             .ToListAsync();
+    }
+    // --------------------------------------------------------
+
+    private async Task ApagarProduto(Produto p)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar '{p.Titulo}'?");
+
+        if (confirmar)
+        {
+            try
+            {
+                var produtoParaApagar = await Context.Produtos.FindAsync(p.Id);
+
+                if (produtoParaApagar != null)
+                {
+                    Context.Produtos.Remove(produtoParaApagar);
+                    await Context.SaveChangesAsync();
+
+                    // Agora chama o método único sem confusão
+                    await CarregarProdutos();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao apagar: {ex.Message}");
+            }
+        }
     }
 }

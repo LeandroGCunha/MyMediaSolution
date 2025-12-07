@@ -1,0 +1,107 @@
+﻿@page "/produtos/editar/{id:int}"
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Editar Produto</h3>
+
+@if (produto == null)
+{
+    <p><em>A carregar dados...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <EditForm Model="produto" OnValidSubmit="AtualizarProduto">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label>Título:</label>
+                    <InputText class="form-control" @bind-Value="produto.Titulo" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Descrição:</label>
+                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Categoria:</label>
+                    <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
+                        <option value="">-- Selecione --</option>
+                        @foreach (var cat in listaCategorias)
+                        {
+                            <option value="@cat.Id">@cat.Nome</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="row bg-light p-3 border rounded mb-3">
+                    <div class="col-md-4">
+                        <label>Preço Base (€):</label>
+                        <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
+                    </div>
+                    <div class="col-md-4">
+                        <label>Margem (0.2 = 20%):</label>
+                        <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
+                    </div>
+                    <div class="col-md-4">
+                        <label>Stock:</label>
+                        <InputNumber class="form-control" @bind-Value="produto.Stock" />
+                    </div>
+
+                    <div class="col-12 mt-2">
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" />
+                            <label class="form-check-label">Produto está Visível na Loja?</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                <a href="/produtos" class="btn btn-secondary">Cancelar</a>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Produto? produto;
+    private List<Categoria> listaCategorias = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Carregar as categorias para a dropdown
+        listaCategorias = await Context.Categorias.ToListAsync();
+
+        // 2. Carregar o produto que queremos editar
+        produto = await Context.Produtos.FindAsync(Id);
+
+        if (produto == null)
+        {
+            // Se não encontrar (ex: ID 999), volta à lista
+            Navigation.NavigateTo("/produtos");
+        }
+    }
+
+    private async Task AtualizarProduto()
+    {
+        if (produto == null) return;
+
+        // Recalcular o Preço Final caso a margem ou base tenham mudado
+        produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
+
+        // O Entity Framework já está a "olhar" para este objeto, basta salvar
+        Context.Produtos.Update(produto);
+        await Context.SaveChangesAsync();
+
+        Navigation.NavigateTo("/produtos");
+    }
+}

@@ -1,0 +1,73 @@
+﻿@page "/produto/{id:int}"
+@using MyMedia.Data.Entities
+@using MyMedia.Client.RCL.Services
+@inject ClientProdutoService ProdutoService
+@inject NavigationManager Navigation
+
+<div class="container mt-5">
+    @if (produto == null)
+    {
+        <div class="alert alert-info">A carregar detalhes...</div>
+    }
+    else
+    {
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h3 class="m-0">@produto.Titulo</h3>
+                <span class="badge bg-light text-dark">@produto.Categoria?.Nome</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 250px; border-radius: 10px;">
+                            <i class="bi bi-camera" style="font-size: 4rem;"></i>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <h4 class="text-success mb-3">@produto.PrecoFinal.ToString("C")</h4>
+
+                        <p><strong>Tipo:</strong> @produto.Tipo</p>
+
+                        <hr />
+                        <h5>Descrição:</h5>
+                        <p class="text-muted">
+                            @(string.IsNullOrEmpty(produto.Descricao) ? "Sem descrição disponível." : produto.Descricao)
+                        </p>
+
+                        <div class="mt-4">
+                            <button class="btn btn-success btn-lg me-2">
+                                <i class="bi bi-cart-plus"></i> Adicionar ao Carrinho
+                            </button>
+
+                            <button class="btn btn-outline-secondary btn-lg" @onclick="Voltar">
+                                Voltar à Loja
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                Stock disponível: @produto.Stock unidades
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Produto? produto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Usa o serviço para buscar APENAS este produto à API
+        produto = await ProdutoService.GetProdutoByIdAsync(Id);
+    }
+
+    private void Voltar()
+    {
+        Navigation.NavigateTo("/"); // Volta ao catálogo
+    }
+}
