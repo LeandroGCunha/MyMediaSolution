@@ -252,6 +252,64 @@ namespace MyMedia.Data.Migrations
                     b.ToTable("Categorias");
                 });
 
+            modelBuilder.Entity("MyMedia.Data.Entities.Encomenda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApplicationUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("Data")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("ValorTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationUserId");
+
+                    b.ToTable("Encomendas");
+                });
+
+            modelBuilder.Entity("MyMedia.Data.Entities.ItemEncomenda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EncomendaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PrecoUnitario")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProdutoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantidade")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EncomendaId");
+
+                    b.HasIndex("ProdutoId");
+
+                    b.ToTable("ItensEncomenda");
+                });
+
             modelBuilder.Entity("MyMedia.Data.Entities.Produto", b =>
                 {
                     b.Property<int>("Id")
@@ -353,6 +411,36 @@ namespace MyMedia.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MyMedia.Data.Entities.Encomenda", b =>
+                {
+                    b.HasOne("MyMedia.Data.Entities.ApplicationUser", "ApplicationUser")
+                        .WithMany()
+                        .HasForeignKey("ApplicationUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
+                });
+
+            modelBuilder.Entity("MyMedia.Data.Entities.ItemEncomenda", b =>
+                {
+                    b.HasOne("MyMedia.Data.Entities.Encomenda", "Encomenda")
+                        .WithMany("Itens")
+                        .HasForeignKey("EncomendaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MyMedia.Data.Entities.Produto", "Produto")
+                        .WithMany()
+                        .HasForeignKey("ProdutoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Encomenda");
+
+                    b.Navigation("Produto");
+                });
+
             modelBuilder.Entity("MyMedia.Data.Entities.Produto", b =>
                 {
                     b.HasOne("MyMedia.Data.Entities.Categoria", "Categoria")
@@ -373,6 +461,11 @@ namespace MyMedia.Data.Migrations
             modelBuilder.Entity("MyMedia.Data.Entities.Categoria", b =>
                 {
                     b.Navigation("Produtos");
+                });
+
+            modelBuilder.Entity("MyMedia.Data.Entities.Encomenda", b =>
+                {
+                    b.Navigation("Itens");
                 });
 #pragma warning restore 612, 618
         }

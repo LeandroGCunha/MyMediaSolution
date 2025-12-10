@@ -1,0 +1,117 @@
+﻿@page "/utilizadores"
+@using Microsoft.AspNetCore.Identity
+@using MyMedia.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrador")]
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@rendermode InteractiveServer
+
+<h3>Gestão de Utilizadores</h3>
+
+@if (listaUtilizadores == null)
+{
+    <p><em>A carregar...</em></p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Nome</th>
+                <th>NIF</th>
+                <th>Função (Role)</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in listaUtilizadores)
+            {
+                <tr>
+                    <td>@user.Email</td>
+                    <td>@user.NomeCompleto</td>
+                    <td>@user.NIF</td>
+                    <td>
+                        <span class="badge bg-info text-dark">
+                            @(userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : "Sem Role")
+                        </span>
+                    </td>
+                    <td>
+                        @if (user.Email != "admin@mymedia.com")
+                        {
+                            <div class="dropdown">
+                                <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Alterar Função
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Funcionario"))">
+                                            Promover a Funcionário
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Cliente"))">
+                                            Mudar para Cliente
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Fornecedor"))">
+                                            Mudar para Fornecedor
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" @onclick="@(() => ApagarUser(user))">
+                                            Apagar Utilizador
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ApplicationUser>? listaUtilizadores;
+    private Dictionary<string, string> userRoles = new Dictionary<string, string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarDados();
+    }
+
+    private async Task CarregarDados()
+    {
+        listaUtilizadores = await UserManager.Users.ToListAsync();
+        userRoles.Clear();
+
+        foreach (var user in listaUtilizadores)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            userRoles.Add(user.Id, roles.FirstOrDefault() ?? "Nenhuma");
+        }
+    }
+
+    private async Task MudarRole(ApplicationUser user, string novaRole)
+    {
+        var rolesAtuais = await UserManager.GetRolesAsync(user);
+        if (rolesAtuais.Any())
+        {
+            await UserManager.RemoveFromRolesAsync(user, rolesAtuais);
+        }
+
+        await UserManager.AddToRoleAsync(user, novaRole);
+        await CarregarDados();
+    }
+
+    private async Task ApagarUser(ApplicationUser user)
+    {
+        await UserManager.DeleteAsync(user);
+        await CarregarDados();
+    }
+}

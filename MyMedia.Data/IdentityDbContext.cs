@@ -18,8 +18,8 @@ namespace MyMedia.Data
 
         public DbSet<Produto> Produtos { get; set; }
         public DbSet<Categoria> Categorias { get; set; }
-        // Adicione aqui DbSet para Vendas/Encomendas futuramente
-
+        public DbSet<Encomenda> Encomendas { get; set; }
+        public DbSet<ItemEncomenda> ItensEncomenda { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

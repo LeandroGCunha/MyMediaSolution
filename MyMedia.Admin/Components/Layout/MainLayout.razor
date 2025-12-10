@@ -7,8 +7,31 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span class="me-3">Olá, <b>@context.User.Identity?.Name</b></span>
+
+                    <form action="Identity/Account/Logout" method="post" class="d-inline">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="/" />
+                        <button type="submit" class="btn btn-link nav-link d-inline">Sair</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="Identity/Account/Login" class="btn btn-link">Login</a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
+
+@code {
+    // Pequena função auxiliar para mostrar a Role no ecrã (opcional)
+    string ObterRole(AuthenticationState context)
+    {
+        if (context.User.IsInRole("Administrador")) return "Admin";
+        if (context.User.IsInRole("Funcionario")) return "Func.";
+        return "";
+    }
+}
 
         <article class="content px-4">
             @Body

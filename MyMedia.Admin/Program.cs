@@ -14,11 +14,20 @@ builder.Services.AddRazorComponents()
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string not found.");
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
 
-// Configuração do Identity para a Gestão de Loja
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
+
+// Configuraï¿½ï¿½o do Identity para a Gestï¿½o de Loja
+// ConfiguraÃ§Ã£o do Identity COM suporte a Roles
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 3;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders()
     .AddDefaultUI();
@@ -40,5 +49,26 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+
+app.MapRazorPages(); // Necessï¿½rio para o Login funcionar
+
+// --- BLOCO NOVO: SEMEAR DADOS ---
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        // Cria as Roles e o Admin automaticamente
+        await DbSeeder.SeedRolesAndAdminAsync(services);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao criar dados iniciais: {ex.Message}");
+    }
+}
+// --------------------------------
+
+app.Run();
 
 app.Run();

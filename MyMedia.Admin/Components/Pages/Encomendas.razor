@@ -1,0 +1,93 @@
+﻿@page "/encomendas"
+@using Microsoft.EntityFrameworkCore
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@inject ApplicationDbContext Context
+@attribute [Authorize(Roles = "Administrador, Funcionario")]
+@rendermode InteractiveServer
+
+<h3>Gestão de Encomendas</h3>
+
+@if (listaEncomendas == null)
+{
+    <p>A carregar...</p>
+}
+else if (!listaEncomendas.Any())
+{
+    <div class="alert alert-info">Ainda não existem encomendas registadas.</div>
+}
+else
+{
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Data</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var enc in listaEncomendas)
+            {
+                <tr>
+                    <td>#@enc.Id</td>
+                    <td>@enc.Data.ToShortDateString()</td>
+                    <td>@enc.ApplicationUser?.Email</td>
+                    <td><strong>@enc.ValorTotal.ToString("C")</strong></td>
+                    <td>
+                        @if (enc.Estado == "Pendente")
+                        {
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                        }
+                        else if (enc.Estado == "Paga")
+                        {
+
+                            <span class="badge bg-info text-dark">Paga</span>
+                        }
+                        else if (enc.Estado == "Enviada")
+                        {
+
+                            <span class="badge bg-success">Enviada</span>
+                        }
+                    </td>
+                    <td>
+                        @if (enc.Estado != "Enviada")
+                        {
+                            <button class="btn btn-sm btn-success" @onclick="() => MarcarEnviada(enc)">
+                                Marcar Enviada
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Encomenda>? listaEncomendas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarDados();
+    }
+
+    private async Task CarregarDados()
+    {
+        // Carrega encomendas e os dados do cliente
+        listaEncomendas = await Context.Encomendas
+            .Include(e => e.ApplicationUser)
+            .OrderByDescending(e => e.Data)
+            .ToListAsync();
+    }
+
+    private async Task MarcarEnviada(Encomenda enc)
+    {
+        enc.Estado = "Enviada";
+        await Context.SaveChangesAsync();
+        // Não precisa recarregar tudo, o Blazor atualiza a UI automaticamente se mudarmos o objeto
+    }
+}
