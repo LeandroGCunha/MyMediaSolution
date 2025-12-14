@@ -1,0 +1,137 @@
+﻿@page "/carrinho"
+@using MyMedia.Client.RCL.Services
+@inject CarrinhoService CarrinhoSvc
+@inject NavigationManager Navigation
+
+<div class="container mt-5">
+    <h2 class="mb-4"><i class="bi bi-cart3"></i> O meu Carrinho</h2>
+
+    @if (itens.Count == 0)
+    {
+        <div class="alert alert-warning text-center p-5">
+            <h4>O seu carrinho está vazio!</h4>
+            <p>Vá dar uma volta pelo catálogo.</p>
+            <a href="/" class="btn btn-primary mt-3">Ir para a Loja</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Preço Un.</th>
+                                    <th style="width: 140px;">Quantidade</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in itens)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if (!string.IsNullOrEmpty(item.Produto.ImagemUrl))
+                                                {
+                                                    <img src="@item.Produto.ImagemUrl" width="50" class="rounded me-2">
+                                                }
+                                                <div>
+                                                    <span class="fw-bold d-block">@item.Produto.Titulo</span>
+                                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                                        Stock: @item.Produto.Stock un.
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>@item.Produto.PrecoFinal.ToString("C")</td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number"
+                                                       class="form-control text-center"
+                                                       min="1"
+                                                       max="@item.Produto.Stock"
+                                                       value="@item.Quantidade"
+                                                       @onchange="@(e => AtualizarQtd(item, e.Value))" />
+                                            </div>
+
+                                            @if (item.Quantidade >= item.Produto.Stock)
+                                            {
+                                                <small class="text-danger fw-bold" style="font-size: 0.7rem;">
+                                                    Máx. atingido!
+                                                </small>
+                                            }
+                                        </td>
+                                        <td class="fw-bold text-success">
+                                            @((item.Produto.PrecoFinal * item.Quantidade).ToString("C"))
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Remover(item)">
+                                                <i class="bi bi-trash"></i>Remover
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Resumo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Total Itens:</span>
+                            <strong>@CarrinhoSvc.ContarItens()</strong>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between mb-4">
+                            <span class="fs-4">Total a Pagar:</span>
+                            <strong class="fs-4 text-primary">@CarrinhoSvc.Total().ToString("C")</strong>
+                        </div>
+                        <button class="btn btn-success w-100 btn-lg" onclick="alert('Checkout em breve...')">
+                            Finalizar Compra <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<CarrinhoItem> itens = new();
+
+    protected override void OnInitialized()
+    {
+        itens = CarrinhoSvc.GetItems();
+        CarrinhoSvc.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        CarrinhoSvc.OnChange -= StateHasChanged;
+    }
+
+    private void Remover(CarrinhoItem item)
+    {
+        CarrinhoSvc.Remover(item.Produto);
+    }
+
+    private void AtualizarQtd(CarrinhoItem item, object? valorInput)
+    {
+        if (int.TryParse(valorInput?.ToString(), out int novaQtd))
+        {
+            // O serviço já trata de cortar se for maior que o stock
+            CarrinhoSvc.AtualizarQuantidade(item.Produto, novaQtd);
+        }
+    }
+}

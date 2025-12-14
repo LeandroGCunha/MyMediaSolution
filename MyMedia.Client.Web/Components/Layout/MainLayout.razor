@@ -1,4 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@using MyMedia.Client.RCL.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject CarrinhoService CarrinhoSvc
+@implements IDisposable
 
 <div class="page">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
@@ -10,18 +14,62 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarStore">
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link" href="/">Início</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/catalogo">Catálogo</a>
                     </li>
-                    <li class="nav-item ms-lg-3">
-                        <a class="btn btn-outline-warning btn-sm" href="/carrinho">
+                </ul>
+
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+
+                    <li class="nav-item me-3">
+                        <a class="btn btn-outline-warning btn-sm position-relative" href="/carrinho">
                             <i class="bi bi-cart-fill"></i> Carrinho
+                            @if (CarrinhoSvc.ContarItens() > 0)
+                            {
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    @CarrinhoSvc.ContarItens()
+                                    <span class="visually-hidden">itens</span>
+                                </span>
+                            }
                         </a>
                     </li>
+
+                    <div class="vr bg-secondary mx-2 d-none d-lg-block" style="height: 25px;"></div>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-person-circle"></i> Olá, @context.User.Identity?.Name
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="Account/Manage">Perfil</a></li>
+                                    <li><a class="dropdown-item" href="meus-pedidos">Encomendas</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form action="Account/Logout" method="post">
+                                            <input type="hidden" name="ReturnUrl" value="/" />
+                                            <button type="submit" class="dropdown-item text-danger">Sair / Logout</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        </Authorized>
+                        <NotAuthorized>
+                            <li class="nav-item">
+                                <a class="nav-link" href="Account/Login">Entrar</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-primary btn-sm ms-2" href="Account/Register">Registar</a>
+                            </li>
+                        </NotAuthorized>
+                    </AuthorizeView>
+
                 </ul>
             </div>
         </div>
@@ -39,3 +87,15 @@
         </div>
     </footer>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        CarrinhoSvc.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        CarrinhoSvc.OnChange -= StateHasChanged;
+    }
+}

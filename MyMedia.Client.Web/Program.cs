@@ -14,6 +14,9 @@ builder.Services.AddHttpClient<ClientProdutoService>(client =>
     client.BaseAddress = new Uri("https://localhost:7198/");
 });
 
+builder.Services.AddScoped<CarrinhoService>();
+builder.Services.AddCascadingAuthenticationState();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

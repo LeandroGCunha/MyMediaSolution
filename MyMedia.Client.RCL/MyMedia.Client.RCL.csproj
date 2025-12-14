@@ -19,4 +19,8 @@
     <ProjectReference Include="..\MyMedia.Data\MyMedia.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="NewFolder\" />
+  </ItemGroup>
+
 </Project>

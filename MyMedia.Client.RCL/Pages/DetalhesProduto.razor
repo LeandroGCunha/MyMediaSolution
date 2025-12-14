@@ -3,6 +3,7 @@
 @using MyMedia.Client.RCL.Services
 @inject ClientProdutoService ProdutoService
 @inject NavigationManager Navigation
+@inject CarrinhoService Carrinho
 
 <div class="container mt-5">
     @if (produto == null)
@@ -49,7 +50,7 @@
                         </p>
 
                         <div class="mt-5">
-                            <button class="btn btn-success btn-lg me-2">
+                            <button class="btn btn-success btn-lg me-2" @onclick="AdicionarAoCarrinho">
                                 <i class="bi bi-cart-plus"></i> Adicionar ao Carrinho
                             </button>
 
@@ -77,6 +78,15 @@
     {
         // Usa o serviço para buscar APENAS este produto à API
         produto = await ProdutoService.GetProdutoByIdAsync(Id);
+    }
+
+    // --- NOVO MÉTODO PARA ADICIONAR AO CARRINHO ---
+    private void AdicionarAoCarrinho()
+    {
+        if (produto != null)
+        {
+            Carrinho.Adicionar(produto);    // Guarda no serviço
+        }
     }
 
     private void Voltar()
