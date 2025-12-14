@@ -27,6 +27,9 @@ namespace MyMedia.Data.Entities
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrecoFinal { get; set; }
 
+        [Display(Name = "Imagem")]
+        public string? ImagemUrl { get; set; } 
+
         public int Stock { get; set; }
         public bool IsAtivo { get; set; } = false; // Começa inativo/pendente
 
@@ -37,6 +40,8 @@ namespace MyMedia.Data.Entities
         // Quem está a vender? (O Fornecedor)
         public string? FornecedorId { get; set; }
         public virtual ApplicationUser Fornecedor { get; set; }
+
+
     }
 
 }

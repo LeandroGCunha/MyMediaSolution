@@ -3,8 +3,10 @@
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
+@using System.IO
 @inject ApplicationDbContext Context
 @inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
 @rendermode InteractiveServer
 
 <h3>Editar Produto</h3>
@@ -19,6 +21,7 @@ else
         <div class="col-md-8">
             <EditForm Model="produto" OnValidSubmit="AtualizarProduto">
                 <DataAnnotationsValidator />
+                <ValidationSummary />
 
                 <div class="mb-3">
                     <label>Título:</label>
@@ -27,44 +30,79 @@ else
 
                 <div class="mb-3">
                     <label>Descrição:</label>
-                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" />
+                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" />
                 </div>
 
-                <div class="mb-3">
-                    <label>Categoria:</label>
-                    <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
-                        <option value="">-- Selecione --</option>
-                        @foreach (var cat in listaCategorias)
-                        {
-                            <option value="@cat.Id">@cat.Nome</option>
-                        }
-                    </InputSelect>
+                <div class="mb-3 border p-3 rounded bg-light">
+                    <label class="form-label fw-bold">Imagem do Produto:</label>
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            @if (!string.IsNullOrEmpty(imagemPreview))
+                            {
+                                <p class="small text-success">Nova Imagem (Pré-visualização):</p>
+                                <img src="@imagemPreview" width="150" class="img-thumbnail border-success" />
+                            }
+                            else if (!string.IsNullOrEmpty(produto.ImagemUrl))
+                            {
+                                <p class="small text-muted">Imagem Atual:</p>
+                                <img src="@produto.ImagemUrl" width="150" class="img-thumbnail" />
+                            }
+                            else
+                            {
+                                <div class="border p-3 text-muted">Sem Imagem</div>
+                            }
+                        </div>
+                        <div class="col-md-8 align-self-center">
+                            <label class="form-label">Escolher Nova Imagem:</label>
+                            <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
+                            <small class="text-muted">Deixe vazio para manter a imagem atual.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Tipo (Ex: CD, DVD):</label>
+                        <InputText class="form-control" @bind-Value="produto.Tipo" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Categoria:</label>
+                        <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
+                            <option value="">-- Selecione --</option>
+                            @foreach (var cat in listaCategorias)
+                            {
+                                <option value="@cat.Id">@cat.Nome</option>
+                            }
+                        </InputSelect>
+                    </div>
                 </div>
 
                 <div class="row bg-light p-3 border rounded mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-4 mb-3">
                         <label>Preço Base (€):</label>
                         <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
                     </div>
-                    <div class="col-md-4">
-                        <label>Margem (0.2 = 20%):</label>
+                    <div class="col-md-4 mb-3">
+                        <label>Margem (0.5 = 50%):</label>
                         <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-4 mb-3">
                         <label>Stock:</label>
                         <InputNumber class="form-control" @bind-Value="produto.Stock" />
                     </div>
 
-                    <div class="col-12 mt-2">
-                        <div class="form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" />
-                            <label class="form-check-label">Produto está Visível na Loja?</label>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" id="flexSwitchCheckChecked" />
+                            <label class="form-check-label fw-bold" for="flexSwitchCheckChecked">
+                                @(produto.IsAtivo ? "Produto Ativo e Visível" : "Produto Inativo (Oculto)")
+                            </label>
                         </div>
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary">Guardar Alterações</button>
-                <a href="/produtos" class="btn btn-secondary">Cancelar</a>
+                <a href="/produtos" class="btn btn-secondary ms-2">Cancelar</a>
             </EditForm>
         </div>
     </div>
@@ -77,18 +115,42 @@ else
     private Produto? produto;
     private List<Categoria> listaCategorias = new();
 
+    // Variáveis para controlar o upload da nova imagem
+    private IBrowserFile? novoFicheiroSelecionado;
+    private string? imagemPreview;
+
     protected override async Task OnInitializedAsync()
     {
-        // 1. Carregar as categorias para a dropdown
-        listaCategorias = await Context.Categorias.ToListAsync();
-
-        // 2. Carregar o produto que queremos editar
+        listaCategorias = await Context.Categorias.AsNoTracking().ToListAsync();
         produto = await Context.Produtos.FindAsync(Id);
 
         if (produto == null)
         {
-            // Se não encontrar (ex: ID 999), volta à lista
             Navigation.NavigateTo("/produtos");
+        }
+    }
+
+    // --- LÓGICA DA PRÉ-VISUALIZAÇÃO ---
+    private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
+    {
+        novoFicheiroSelecionado = e.File;
+
+        long maxFileSize = 1024 * 1024 * 5; // 5MB
+        var format = "image/png";
+
+        try
+        {
+            var resizedImage = await novoFicheiroSelecionado.RequestImageFileAsync(format, 300, 300);
+            using (var stream = resizedImage.OpenReadStream(maxFileSize))
+            using (var ms = new MemoryStream())
+            {
+                await stream.CopyToAsync(ms);
+                imagemPreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro na pré-visualização: {ex.Message}");
         }
     }
 
@@ -96,10 +158,42 @@ else
     {
         if (produto == null) return;
 
-        // Recalcular o Preço Final caso a margem ou base tenham mudado
+        // --- GRAVAR NOVA IMAGEM (Se houver) ---
+        if (novoFicheiroSelecionado != null)
+        {
+            // 1. Apagar a imagem antiga se existir e for diferente
+            if (!string.IsNullOrEmpty(produto.ImagemUrl))
+            {
+                var caminhoAntigo = Path.Combine(Environment.WebRootPath, produto.ImagemUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(caminhoAntigo))
+                {
+                    // Nota: O try-catch evita erros se o ficheiro estiver preso pelo Windows
+                    try { File.Delete(caminhoAntigo); } catch { }
+                }
+            }
+
+            // 2. DEFINIR O NOME COM O ID DO PRODUTO
+            // Exemplo: Se o ID for 15 e a imagem for png, fica "15.png"
+            var extensao = Path.GetExtension(novoFicheiroSelecionado.Name);
+            var nomeFicheiro = $"{produto.Id}{extensao}";
+
+            var pastaImagens = Path.Combine(Environment.WebRootPath, "imagens");
+            if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
+
+            var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
+
+            // 3. Gravar (O FileMode.Create substitui o ficheiro se ele já existir)
+            await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
+            await novoFicheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
+
+            // 4. Atualizar o URL na BD
+            // Adicionamos um carimbo de data (?v=...) para o navegador não mostrar a imagem velha (cache)
+            produto.ImagemUrl = $"/imagens/{nomeFicheiro}?v={DateTime.Now.Ticks}";
+        }
+
+        // Recalcular Preço
         produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
 
-        // O Entity Framework já está a "olhar" para este objeto, basta salvar
         Context.Produtos.Update(produto);
         await Context.SaveChangesAsync();
 

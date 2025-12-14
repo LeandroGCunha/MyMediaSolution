@@ -3,8 +3,10 @@
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
+@using System.IO
 @inject ApplicationDbContext Context
 @inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
 @rendermode InteractiveServer
 
 <h3>Novo Produto</h3>
@@ -13,15 +15,31 @@
     <div class="col-md-8">
         <EditForm Model="produto" OnValidSubmit="GuardarProduto">
             <DataAnnotationsValidator />
+            <ValidationSummary />
 
             <div class="mb-3">
                 <label>Título:</label>
                 <InputText class="form-control" @bind-Value="produto.Titulo" />
             </div>
+
             <div class="mb-3">
                 <label>Descrição Detalhada:</label>
                 <InputTextArea class="form-control" @bind-Value="produto.Descricao" />
             </div>
+
+            <div class="mb-3 border p-3 rounded">
+                <label class="form-label fw-bold">Imagem do Produto:</label>
+                <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
+
+                @if (!string.IsNullOrEmpty(imagemPreview))
+                {
+                    <div class="mt-2">
+                        <p>Pré-visualização:</p>
+                        <img src="@imagemPreview" width="150" class="img-thumbnail" />
+                    </div>
+                }
+            </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label>Tipo (Ex: CD, DVD, Livro):</label>
@@ -53,12 +71,13 @@
                     <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
                 </div>
                 <div class="col-md-4">
-                    <label>Margem de Lucro (0.10 = 10%):</label>
+                    <label>Margem (Ex: 0.5 = 50%):</label>
                     <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
                 </div>
                 <div class="col-md-4 pt-4">
                     <p>
-                        Estimativa Final: <strong>
+                        Estimativa Final:
+                        <strong class="text-success" style="font-size: 1.2em;">
                             @((produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro)).ToString("C"))
                         </strong>
                     </p>
@@ -75,24 +94,76 @@
     private Produto produto = new Produto();
     private List<Categoria> listaCategorias = new();
 
+    // Variáveis para a imagem
+    private IBrowserFile? ficheiroSelecionado;
+    private string? imagemPreview;
+
     protected override async Task OnInitializedAsync()
     {
-        // Precisamos carregar as categorias para preencher a Dropdown
         listaCategorias = await Context.Categorias.ToListAsync();
+        produto.IsAtivo = true;
+        produto.MargemLucro = 0.5m; // Valor inicial sugerido
+    }
 
-        // Define valores padrão
-        produto.IsAtivo = true; // Por defeito entra como ativo (pode mudar a regra depois)
+    // Lógica da Pré-visualização (Segura)
+    private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
+    {
+        ficheiroSelecionado = e.File;
+        long maxFileSize = 1024 * 1024 * 5; // 5MB
+        var format = "image/png";
+
+        try
+        {
+            var resizedImage = await ficheiroSelecionado.RequestImageFileAsync(format, 300, 300);
+            using (var stream = resizedImage.OpenReadStream(maxFileSize))
+            using (var ms = new MemoryStream())
+            {
+                await stream.CopyToAsync(ms);
+                imagemPreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro imagem: {ex.Message}");
+        }
     }
 
     private async Task GuardarProduto()
     {
-        // 1. APLICAR REGRA DE NEGÓCIO: Calcular o Preço Final
-        // Fórmula: Base + (Base * Margem)
+        // FASE 1: Preparar dados básicos
         produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
 
-        // 2. Gravar
+        // FASE 2: Gravar na BD PRIMEIRO (Para gerar o ID)
+        // Nota: Ainda não guardamos a imagem, por isso o ImagemUrl vai null ou vazio
         Context.Produtos.Add(produto);
         await Context.SaveChangesAsync();
+
+        // AGORA JÁ TEMOS UM ID! (ex: produto.Id agora é 15)
+
+        // FASE 3: Se houver imagem, gravamos com o nome correto (15.jpg)
+        if (ficheiroSelecionado != null)
+        {
+            var extensao = Path.GetExtension(ficheiroSelecionado.Name);
+
+            // Usamos o ID que acabámos de gerar
+            var nomeFicheiro = $"{produto.Id}{extensao}";
+
+            var pastaImagens = Path.Combine(Environment.WebRootPath, "imagens");
+            if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
+
+            var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
+
+            // Gravar no disco
+            await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
+            await ficheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
+
+            // Atualizar o produto com o caminho da imagem
+            produto.ImagemUrl = "/imagens/" + nomeFicheiro;
+
+            // FASE 4: Gravar a alteração da imagem na BD
+            Context.Produtos.Update(produto);
+            await Context.SaveChangesAsync();
+        }
 
         Navigation.NavigateTo("/produtos");
     }

@@ -328,6 +328,9 @@ namespace MyMedia.Data.Migrations
                     b.Property<string>("FornecedorId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("ImagemUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsAtivo")
                         .HasColumnType("bit");
 

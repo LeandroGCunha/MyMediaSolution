@@ -1,23 +1,41 @@
 ﻿@inherits LayoutComponentBase
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-uppercase" href="/">MyMedia Store</a>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarStore">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarStore">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/catalogo">Catálogo</a>
+                    </li>
+                    <li class="nav-item ms-lg-3">
+                        <a class="btn btn-outline-warning btn-sm" href="/carrinho">
+                            <i class="bi bi-cart-fill"></i> Carrinho
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
+    </nav>
 
-        <article class="content px-4">
+    <main class="py-4 bg-light min-vh-100">
+        <div class="container">
             @Body
-        </article>
+        </div>
     </main>
-</div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
+    <footer class="bg-dark text-white py-4 mt-auto">
+        <div class="container text-center">
+            <small>&copy; 2024 MyMedia - A tua loja de multimédia.</small>
+        </div>
+    </footer>
 </div>

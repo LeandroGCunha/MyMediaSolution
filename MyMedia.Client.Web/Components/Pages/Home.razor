@@ -1,7 +1,98 @@
-﻿@page "/home"
+﻿@page "/Home"
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Context
 
-<PageTitle>Home</PageTitle>
+@if (produtosDestaque.Any())
+{
+    <div id="carouselExampleCaptions" class="carousel slide mb-5 shadow" data-bs-ride="carousel">
+        <div class="carousel-indicators">
+            @for (int i = 0; i < produtosDestaque.Count; i++)
+            {
+                <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"></button>
+            }
+        </div>
+        <div class="carousel-inner">
+            @foreach (var item in produtosDestaque.Select((prod, index) => new { prod, index }))
+            {
+                <div class="carousel-item @(item.index == 0 ? "active" : "")" style="height: 400px; background-color: #333;">
+                    @if (!string.IsNullOrEmpty(item.prod.ImagemUrl))
+                    {
+                        <img src="@item.prod.ImagemUrl" class="d-block w-100" style="object-fit: cover; height: 100%; opacity: 0.6;">
+                    }
+                    else
+                    {
+                        <div class="d-block w-100 h-100 bg-secondary"></div>
+                    }
 
-<h1>Hello, world!</h1>
+                    <div class="carousel-caption d-none d-md-block">
+                        <h2 class="display-4 fw-bold">@item.prod.Titulo</h2>
+                        <p class="lead">@item.prod.PrecoFinal.ToString("C")</p>
+                        <a href="/detalhes/@item.prod.Id" class="btn btn-primary btn-lg">Ver Agora</a>
+                    </div>
+                </div>
+            }
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+        </button>
+    </div>
+}
 
-Welcome to your new app.
+<div class="container mb-5">
+    <h3 class="mb-4 border-bottom pb-2">Novidades na Loja</h3>
+
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+        @foreach (var p in todosProdutos)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
+                    <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center">
+                        @if (!string.IsNullOrEmpty(p.ImagemUrl))
+                        {
+                            <img src="@p.ImagemUrl" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <span class="text-muted"><i class="bi bi-camera"></i> Sem foto</span>
+                        }
+                    </div>
+
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">@p.Titulo</h5>
+                        <p class="card-text text-success fw-bold fs-5">@p.PrecoFinal.ToString("C")</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0 d-grid">
+                        <a href="/detalhes/@p.Id" class="btn btn-outline-primary">Detalhes</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Produto> produtosDestaque = new();
+    private List<Produto> todosProdutos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Vai buscar os últimos 3 produtos para o Slider
+        produtosDestaque = await Context.Produtos
+            .Where(p => p.IsAtivo && !string.IsNullOrEmpty(p.ImagemUrl)) // Só com imagem
+            .OrderByDescending(p => p.Id)
+            .Take(3)
+            .ToListAsync();
+
+        // Vai buscar o resto para a grelha
+        todosProdutos = await Context.Produtos
+            .Where(p => p.IsAtivo)
+            .OrderByDescending(p => p.Id)
+            .Take(8) // Limite de 8 produtos na home
+            .ToListAsync();
+    }
+}

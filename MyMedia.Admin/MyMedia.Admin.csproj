@@ -27,6 +27,12 @@
 
   <ItemGroup>
     <Folder Include="Areas\Identity\Data\" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\imagens\**" />
+    
+    <Content Include="wwwroot\imagens\**" Watch="false" />
   </ItemGroup>
 
 </Project>

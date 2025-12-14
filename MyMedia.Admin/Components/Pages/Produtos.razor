@@ -5,7 +5,9 @@
 @using MyMedia.Data.Entities
 @inject ApplicationDbContext Context
 @inject IJSRuntime JS  // <--- Injeção necessária para o Popup de confirmação
+@inject IWebHostEnvironment Environment
 @rendermode InteractiveServer
+
 
 <h3>Gestão de Produtos</h3>
 
@@ -26,10 +28,12 @@ else
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
+                    
                     <th>Título</th>
                     <th>Categoria</th>
                     <th>Preço Final</th>
                     <th>Stock</th>
+                        <th>imagem</th>
                     <th>Estado</th>
                     <th>Ações</th> </tr>
             </thead>
@@ -41,6 +45,16 @@ else
                             <td>@p.Categoria?.Nome</td>
                             <td><strong>@p.PrecoFinal.ToString("C")</strong></td>
                             <td>@p.Stock</td>
+                                    <td>
+            @if (!string.IsNullOrEmpty(p.ImagemUrl))
+            {
+                    <img src="@p.ImagemUrl" width="50" height="50" style="object-fit:cover" class="rounded" />
+            }
+            else
+            {
+                    <span class="text-muted">Sem foto</span>
+            }
+        </td>
                             <td>
                                 @if (p.IsAtivo)
                                 {
@@ -85,8 +99,8 @@ else
 
     private async Task ApagarProduto(Produto p)
     {
-        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar '{p.Titulo}'?");
- 
+        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar '{p.Titulo}' e a respetiva imagem?");
+
         if (confirmar)
         {
             try
@@ -95,11 +109,34 @@ else
 
                 if (produtoParaApagar != null)
                 {
+                    // --- APAGAR IMAGEM DO DISCO ---
+                    if (!string.IsNullOrEmpty(produtoParaApagar.ImagemUrl))
+                    {
+                        // 1. Converter o URL (/imagens/15.jpg) para caminho do Windows (C:\...\wwwroot\imagens\15.jpg)
+                        // O TrimStart('/') remove a primeira barra para o Path.Combine funcionar bem
+                        var caminhoImagem = Path.Combine(Environment.WebRootPath, produtoParaApagar.ImagemUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
+                        // 2. Verificar se existe e apagar
+                        if (File.Exists(caminhoImagem))
+                        {
+                            try
+                            {
+                                File.Delete(caminhoImagem);
+                            }
+                            catch
+                            {
+                                // Se falhar ao apagar o ficheiro (ex: ficheiro aberto),
+                                // ignoramos para não impedir de apagar o produto da BD.
+                                Console.WriteLine("A imagem não pôde ser apagada, mas o produto será removido.");
+                            }
+                        }
+                    }
+
+                    // --- APAGAR DA BD ---
                     Context.Produtos.Remove(produtoParaApagar);
                     await Context.SaveChangesAsync();
 
-                    // Agora chama o método único sem confusão
-                    await CarregarProdutos();
+                    await CarregarProdutos(); // Atualiza a lista no ecrã
                 }
             }
             catch (Exception ex)
