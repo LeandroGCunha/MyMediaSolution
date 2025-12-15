@@ -1,0 +1,86 @@
+@page "/login"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using MyMedia.Client.RCL.Models
+@using MyMedia.Client.RCL.Services
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3>?? Entrar</h3>
+                </div>
+                <div class="card-body">
+
+                    <EditForm Model="@LoginModel" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Nome de Utilizador</label>
+                            <InputText @bind-Value="LoginModel.UserName" class="form-control" placeholder="Ex: admin" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Palavra-Passe</label>
+                            <InputText @bind-Value="LoginModel.Password" type="password" class="form-control" placeholder="******" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            Entrar
+                        </button>
+
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger mt-3 text-center">
+                                @mensagemErro
+                            </div>
+                        }
+                    </EditForm>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // IMPORTANTE: Usar { get; set; } resolve o erro da "lambda expression"
+    public LoginDto LoginModel { get; set; } = new LoginDto();
+
+    private string mensagemErro = "";
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            // 1. Enviar dados para a API (O endereço deve bater certo com o AuthController)
+            var response = await Http.PostAsJsonAsync("api/auth/login", LoginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // 2. Se a API disser OK, avisamos o sistema de segurança do Blazor
+                if (AuthStateProvider is CustomAuthStateProvider customProvider)
+                {
+                    customProvider.NotifyLogin();
+                }
+
+                // 3. Redirecionar para a página inicial
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                // Se a API devolver erro (400 ou 401)
+                mensagemErro = "Utilizador ou password incorretos.";
+            }
+        }
+        catch (Exception)
+        {
+            mensagemErro = "Erro ao ligar ao servidor.";
+        }
+    }
+}

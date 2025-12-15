@@ -2,12 +2,18 @@
 @using MyMedia.Client.RCL.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject CarrinhoService CarrinhoSvc
+@inject NavigationManager Nav
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
 @implements IDisposable
 
-<div class="page">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+<div class="page d-flex flex-column min-vh-100">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold text-uppercase" href="/">MyMedia Store</a>
+            <a class="navbar-brand fw-bold text-uppercase d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-play-circle-fill text-warning"></i> MyMedia
+            </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarStore">
                 <span class="navbar-toggler-icon"></span>
@@ -27,13 +33,12 @@
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
 
                     <li class="nav-item me-3">
-                        <a class="btn btn-outline-warning btn-sm position-relative" href="/carrinho">
-                            <i class="bi bi-cart-fill"></i> Carrinho
+                        <a class="btn btn-outline-warning btn-sm position-relative border-0" href="/carrinho">
+                            <i class="bi bi-cart-fill fs-5"></i>
                             @if (CarrinhoSvc.ContarItens() > 0)
                             {
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                     @CarrinhoSvc.ContarItens()
-                                    <span class="visually-hidden">itens</span>
                                 </span>
                             }
                         </a>
@@ -44,28 +49,40 @@
                     <AuthorizeView>
                         <Authorized>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="bi bi-person-circle"></i> Olá, @context.User.Identity?.Name
+                                <a class="nav-link dropdown-toggle text-white d-flex align-items-center gap-2"
+                                   href="#"
+                                   role="button"
+                                   @onclick="ToggleMenuUsuario"
+                                   @onclick:preventDefault>
+                                    <div class="bg-primary rounded-circle d-flex justify-content-center align-items-center" style="width: 30px; height: 30px;">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    @context.User.Identity?.Name
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="Account/Manage">Perfil</a></li>
-                                    <li><a class="dropdown-item" href="meus-pedidos">Encomendas</a></li>
+
+                                <ul class="dropdown-menu dropdown-menu-end shadow @(mostrarMenuUsuario ? "show" : "")">
+                                    <li><a class="dropdown-item" href="perfil" @onclick="FecharMenu"><i class="bi bi-person-gear me-2"></i>Minha Conta</a></li>
+                                    <li><a class="dropdown-item" href="meus-pedidos" @onclick="FecharMenu"><i class="bi bi-box-seam me-2"></i>Encomendas</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
-                                        <form action="Account/Logout" method="post">
-                                            <input type="hidden" name="ReturnUrl" value="/" />
-                                            <button type="submit" class="dropdown-item text-danger">Sair / Logout</button>
-                                        </form>
+                                        <button class="dropdown-item text-danger d-flex align-items-center" @onclick="Logout">
+                                            <i class="bi bi-box-arrow-right me-2"></i> Sair
+                                        </button>
                                     </li>
                                 </ul>
+
+                                @if (mostrarMenuUsuario)
+                                {
+                                    <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 900;" @onclick="FecharMenu"></div>
+                                }
                             </li>
                         </Authorized>
                         <NotAuthorized>
                             <li class="nav-item">
-                                <a class="nav-link" href="Account/Login">Entrar</a>
+                                <a class="nav-link" href="login">Entrar</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="btn btn-primary btn-sm ms-2" href="Account/Register">Registar</a>
+                            <li class="nav-item ms-2">
+                                <a class="btn btn-primary btn-sm rounded-pill px-3" href="register">Registar</a>
                             </li>
                         </NotAuthorized>
                     </AuthorizeView>
@@ -75,20 +92,34 @@
         </div>
     </nav>
 
-    <main class="py-4 bg-light min-vh-100">
+    <main class="flex-grow-1 bg-light py-4">
         <div class="container">
             @Body
         </div>
     </main>
 
-    <footer class="bg-dark text-white py-4 mt-auto">
+    <footer class="bg-dark text-white py-3 mt-auto border-top border-secondary">
         <div class="container text-center">
-            <small>&copy; 2024 MyMedia - A tua loja de multimédia.</small>
+            <small class="text-white-50">&copy; 2024 MyMedia Store. Todos os direitos reservados.</small>
         </div>
     </footer>
 </div>
 
 @code {
+    // VARIÁVEIS PARA O MENU
+    private bool mostrarMenuUsuario = false;
+
+    private void ToggleMenuUsuario()
+    {
+        mostrarMenuUsuario = !mostrarMenuUsuario;
+    }
+
+    private void FecharMenu()
+    {
+        mostrarMenuUsuario = false;
+    }
+
+    // LÓGICA DO CARRINHO
     protected override void OnInitialized()
     {
         CarrinhoSvc.OnChange += StateHasChanged;
@@ -97,5 +128,30 @@
     public void Dispose()
     {
         CarrinhoSvc.OnChange -= StateHasChanged;
+    }
+
+    // LÓGICA DE LOGOUT
+    private async Task Logout()
+    {
+        try
+        {
+            FecharMenu(); // Fecha o menu antes de sair
+
+            // 1. Avisa a API
+            await Http.PostAsync("api/auth/logout", null);
+
+            // 2. Atualiza o estado local
+            if (AuthStateProvider is CustomAuthStateProvider customProvider)
+            {
+                customProvider.NotifyLogin();
+            }
+
+            // 3. Redireciona
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        catch
+        {
+            Nav.NavigateTo("/", forceLoad: true);
+        }
     }
 }
