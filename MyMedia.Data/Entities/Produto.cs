@@ -12,36 +12,27 @@ namespace MyMedia.Data.Entities
 
         public string Descricao { get; set; }
 
-        // O enunciado distingue "Suporte" (CD/DVD) de "Acessório". 
-        // Pode usar um Enum ou outra classe para Tipo.
-        public string Tipo { get; set; } // Ex: "Filme", "Música", "Acessório"
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrecoBase { get; set; }
 
-        // Percentagem de lucro da loja
         [Column(TypeName = "decimal(18,2)")]
         public decimal MargemLucro { get; set; }
 
-        // Preço Final = PreçoBase + (PreçoBase * Margem) - Pode ser calculado ou guardado
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrecoFinal { get; set; }
 
         [Display(Name = "Imagem")]
-        public string? ImagemUrl { get; set; } 
+        public string? ImagemUrl { get; set; }
 
         public int Stock { get; set; }
-        public bool IsAtivo { get; set; } = false; // Começa inativo/pendente
+        public bool IsAtivo { get; set; } = false;
 
         // Relacionamentos
-        public int CategoriaId { get; set; }
-        public virtual Categoria Categoria { get; set; }
+        public int? CategoriaId { get; set; }
+        public virtual Categoria? Categoria { get; set; }
 
-        // Quem está a vender? (O Fornecedor)
         public string? FornecedorId { get; set; }
         public virtual ApplicationUser Fornecedor { get; set; }
-
-
     }
-
 }

@@ -5,6 +5,7 @@
 @using MyMedia.Data.Entities
 @inject ApplicationDbContext Context
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <h3>Gestão de Categorias</h3>
@@ -28,6 +29,7 @@ else
             <tr>
                 <th>ID</th>
                 <th>Nome</th>
+                <th>Categoria Mãe</th>
                 <th>Descrição</th>
                 <th>Ações</th>
             </tr>
@@ -38,10 +40,16 @@ else
                 <tr>
                     <td>@cat.Id</td>
                     <td>@cat.Nome</td>
+                    <td>
+                        @(cat.CategoriaPai?.Nome ?? "- Principal -")
+                    </td>
                     <td>@cat.Descricao</td>
                     <td>
-                        <button class="btn btn-sm btn-warning">Editar</button>
-                        <button class="btn btn-sm btn-danger">Apagar</button>
+                        <a href="/categorias/EditarCategoria/@cat.Id" class="btn btn-sm btn-warning">Editar</a>
+
+                        <button class="btn btn-sm btn-danger" @onclick="() => ApagarCategoria(cat)">
+                            Apagar
+                        </button>
                     </td>
                 </tr>
             }
@@ -50,13 +58,40 @@ else
 }
 
 @code {
-    // Lista para guardar os dados que vêm da BD
     private List<Categoria>? listaCategorias;
 
-    // Este método corre assim que a página abre
     protected override async Task OnInitializedAsync()
     {
-        // Vai à BD buscar todas as categorias
+        await CarregarCategorias();
+    }
+
+    private async Task CarregarCategorias()
+    {
         listaCategorias = await Context.Categorias.ToListAsync();
+    }
+
+    private async Task ApagarCategoria(Categoria cat)
+    {
+        // 1. Pergunta de confirmação (JavaScript)
+        bool confirmacao = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar a categoria '{cat.Nome}'?");
+
+        if (!confirmacao) return; // Se disser "Cancelar", sai daqui.
+
+        try
+        {
+            // 2. Remove do Contexto
+            Context.Categorias.Remove(cat);
+
+            // 3. Tenta gravar na BD
+            await Context.SaveChangesAsync();
+
+            // 4. Se correu bem, atualiza a lista no ecrã sem recarregar a página
+            listaCategorias.Remove(cat);
+        }
+        catch (Exception)
+        {
+            // 5. Se der erro (ex: tem subcategorias), mostra aviso
+            await JS.InvokeVoidAsync("alert", "ERRO: Não é possível apagar esta categoria. Verifique se ela tem subcategorias associadas.");
+        }
     }
 }

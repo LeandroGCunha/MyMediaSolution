@@ -189,7 +189,8 @@
         // Se a lista tiver itens, só mostra produtos que pertençam a uma dessas categorias
         if (categoriasSelecionadas.Count > 0)
         {
-            query = query.Where(p => categoriasSelecionadas.Contains(p.CategoriaId));
+            query = query.Where(p => p.CategoriaId.HasValue &&
+                                     categoriasSelecionadas.Contains(p.CategoriaId.Value));
         }
 
         // 2. Filtro de Texto

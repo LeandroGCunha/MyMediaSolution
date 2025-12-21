@@ -1,0 +1,98 @@
+﻿@page "/categorias/editarcategoria/{id:int}"
+@attribute [Authorize(Roles = "Administrador, Funcionario")]
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using MyMedia.Data
+@using MyMedia.Data.Entities
+@inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Editar Categoria</h3>
+
+@if (categoria == null)
+{
+    <p><em>A carregar dados... (ou ID inválido)</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6">
+            <EditForm Model="categoria" OnValidSubmit="AtualizarCategoria">
+                <DataAnnotationsValidator />
+
+                @* 1. NOME *@
+                <div class="mb-3">
+                    <label class="form-label">Nome da Categoria:</label>
+                    <InputText class="form-control" @bind-Value="categoria.Nome" />
+                </div>
+
+                @* 2. CATEGORIA MÃE (DROPDOWN INTELIGENTE) *@
+                <div class="mb-3">
+                    <label class="form-label">Categoria Mãe:</label>
+
+                    <InputSelect class="form-select" @bind-Value="categoria.CategoriaPaiId">
+                        <option value="">-- É uma Categoria Principal --</option>
+
+                        @foreach (var cat in listaPossiveisPais)
+                        {
+                            <option value="@cat.Id">@cat.Nome</option>
+                        }
+                    </InputSelect>
+                    <small class="text-muted">Nota: A própria categoria foi escondida desta lista.</small>
+                </div>
+
+                @* 3. DESCRIÇÃO *@
+                <div class="mb-3">
+                    <label class="form-label">Descrição:</label>
+                    <InputTextArea class="form-control" @bind-Value="categoria.Descricao" />
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                    <a href="/categorias" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; } // Recebe o ID do URL
+
+    private Categoria? categoria;
+    private List<Categoria> listaPossiveisPais = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Vai buscar a categoria que queremos editar
+        categoria = await Context.Categorias.FindAsync(id);
+
+        if (categoria == null)
+        {
+            // Se o ID não existir, volta para a lista
+            Navigation.NavigateTo("/categorias");
+            return;
+        }
+
+        // 2. Carrega a lista para o Dropdown, mas EXCLUI a própria categoria
+        // "Dá-me todas as categorias ONDE o Id NÃO SEJA igual ao meu Id"
+        listaPossiveisPais = await Context.Categorias
+            .Where(c => c.Id != id)
+            .ToListAsync();
+    }
+
+    private async Task AtualizarCategoria()
+    {
+        if (categoria == null) return;
+
+        // O Entity Framework já está a "seguir" este objeto desde que fizemos o FindAsync.
+        // Basta mandar guardar.
+        // Opcional: Context.Categorias.Update(categoria);
+
+        await Context.SaveChangesAsync();
+
+        Navigation.NavigateTo("/categorias");
+    }
+}

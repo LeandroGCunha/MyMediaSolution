@@ -20,10 +20,26 @@ namespace MyMedia.Data
         public DbSet<Categoria> Categorias { get; set; }
         public DbSet<Encomenda> Encomendas { get; set; }
         public DbSet<ItemEncomenda> ItensEncomenda { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            // Aqui pode configurar regras extra ou seeding de dados iniciais
+
+            // --- 1. REGRA DE SEGURANÇA PARA CATEGORIAS (Hierarquia) ---
+            // OBRIGATÓRIO: 'Restrict' impede ciclos e erros do SQL Server.
+            builder.Entity<Categoria>()
+                .HasOne(c => c.CategoriaPai)
+                .WithMany(c => c.SubCategorias)
+                .HasForeignKey(c => c.CategoriaPaiId)
+                .OnDelete(DeleteBehavior.Restrict); // <--- TEM DE SER RESTRICT!
+
+            // --- 2. REGRA PARA PRODUTOS (Ficar sem categoria) ---
+            // Aqui usamos SetNull: Se a categoria for apagada, o produto fica sem categoria.
+            builder.Entity<Produto>()
+                .HasOne(p => p.Categoria)
+                .WithMany()
+                .HasForeignKey(p => p.CategoriaId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

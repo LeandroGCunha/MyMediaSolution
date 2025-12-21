@@ -22,6 +22,31 @@ namespace MyMedia.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Categoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CategoriaPaiId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoriaPaiId");
+
+                    b.ToTable("Categorias");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -231,27 +256,6 @@ namespace MyMedia.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("MyMedia.Data.Entities.Categoria", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Descricao")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Categorias");
-                });
-
             modelBuilder.Entity("MyMedia.Data.Entities.Encomenda", b =>
                 {
                     b.Property<int>("Id")
@@ -318,11 +322,10 @@ namespace MyMedia.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CategoriaId")
+                    b.Property<int?>("CategoriaId")
                         .HasColumnType("int");
 
                     b.Property<string>("Descricao")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FornecedorId")
@@ -346,10 +349,6 @@ namespace MyMedia.Data.Migrations
                     b.Property<int>("Stock")
                         .HasColumnType("int");
 
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Titulo")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -361,6 +360,16 @@ namespace MyMedia.Data.Migrations
                     b.HasIndex("FornecedorId");
 
                     b.ToTable("Produtos");
+                });
+
+            modelBuilder.Entity("Categoria", b =>
+                {
+                    b.HasOne("Categoria", "CategoriaPai")
+                        .WithMany("SubCategorias")
+                        .HasForeignKey("CategoriaPaiId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CategoriaPai");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -446,11 +455,10 @@ namespace MyMedia.Data.Migrations
 
             modelBuilder.Entity("MyMedia.Data.Entities.Produto", b =>
                 {
-                    b.HasOne("MyMedia.Data.Entities.Categoria", "Categoria")
-                        .WithMany("Produtos")
+                    b.HasOne("Categoria", "Categoria")
+                        .WithMany()
                         .HasForeignKey("CategoriaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("MyMedia.Data.Entities.ApplicationUser", "Fornecedor")
                         .WithMany()
@@ -461,9 +469,9 @@ namespace MyMedia.Data.Migrations
                     b.Navigation("Fornecedor");
                 });
 
-            modelBuilder.Entity("MyMedia.Data.Entities.Categoria", b =>
+            modelBuilder.Entity("Categoria", b =>
                 {
-                    b.Navigation("Produtos");
+                    b.Navigation("SubCategorias");
                 });
 
             modelBuilder.Entity("MyMedia.Data.Entities.Encomenda", b =>
