@@ -5,21 +5,66 @@
 
 <PageTitle>Catálogo Completo - MyMedia</PageTitle>
 
+@* --- 1. DEFINIÇÃO DA ÁRVORE (Movemos para o topo para evitar o erro) --- *@
+@{
+    // Declaramos a variável primeiro para permitir recursividade
+    RenderFragment<Categoria> RenderCategoriaTree = null!;
+
+    // Definimos o que ela faz (desenha a categoria e procura filhas)
+    RenderCategoriaTree = (cat) =>
+    @<text>
+    @{
+        bool isSelected = categoriasSelecionadas.Contains(cat.Id);
+        // Procura subcategorias DENTRO da lista de disponíveis
+        var subcategorias = categoriasDisponiveis.Where(sub => sub.CategoriaPaiId == cat.Id).ToList();
+    }
+
+        <button class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center mb-1 tree-btn @(isSelected ? "btn-primary selected" : "btn-light text-dark")"
+                style="padding-left: @(cat.CategoriaPaiId == null ? "10px" : "15px");
+                           border-left: @(cat.CategoriaPaiId == null ? "3px solid transparent" : "3px solid #dee2e6");"
+                @onclick="() => AlternarCategoria(cat.Id)">
+
+            <span class="text-truncate">
+                @if (cat.CategoriaPaiId != null)
+                {
+                    <i class="bi bi-arrow-return-right me-1 small opacity-50"></i>
+                }
+                @cat.Nome
+            </span>
+
+            @if (isSelected)
+            {
+                <i class="bi bi-check-circle-fill small"></i>
+            }
+        </button>
+
+    @if (subcategorias.Any())
+    {
+            <div class="ms-3 border-start ps-1 mb-2">
+                @foreach (var sub in subcategorias)
+                {
+                    @RenderCategoriaTree(sub)
+                }
+            </div>
+    }
+    </text>;
+}
+
 <div class="container mt-4">
     <div class="row">
 
         <div class="col-lg-3 mb-4">
             <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 1;">
-                <div class="card-header bg-white fw-bold">
-                    <i class="bi bi-funnel"></i> Filtros
+                <div class="card-header bg-white fw-bold d-flex align-items-center">
+                    <i class="bi bi-funnel me-2 text-primary"></i> Filtros
                 </div>
                 <div class="card-body">
 
                     <div class="mb-4">
                         <label class="form-label small text-muted text-uppercase fw-bold">Pesquisar</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control"
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0"
                                    placeholder="Nome do produto..."
                                    @bind="termoPesquisa"
                                    @bind:event="oninput"
@@ -28,23 +73,31 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Categorias</label>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-sm @(categoriasSelecionadas.Count == 0 ? "btn-dark" : "btn-outline-secondary") text-start"
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold m-0">Categorias</label>
+                            @if (categoriasSelecionadas.Count > 0)
+                            {
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none text-danger" style="font-size: 0.8rem;" @onclick="LimparCategorias">
+                                    Limpar
+                                </button>
+                            }
+                        </div>
+
+                        <div class="category-tree" style="max-height: 400px; overflow-y: auto;">
+                            <button class="btn btn-sm w-100 text-start mb-1 @(categoriasSelecionadas.Count == 0 ? "btn-primary" : "btn-light text-dark")"
                                     @onclick="LimparCategorias">
-                                Todas as Categorias
+                                <i class="bi bi-grid-fill me-2"></i> Todas as Categorias
                             </button>
 
-                            @foreach (var cat in categoriasDisponiveis)
+                            @if (categoriasDisponiveis.Any())
                             {
-                                <button class="btn btn-sm @(categoriasSelecionadas.Contains(cat.Id) ? "btn-primary" : "btn-outline-secondary") text-start d-flex justify-content-between align-items-center"
-                                        @onclick="() => AlternarCategoria(cat.Id)">
-                                    <span>@cat.Nome</span>
-                                    @if (categoriasSelecionadas.Contains(cat.Id))
-                                    {
-                                        <i class="bi bi-check"></i>
-                                    }
-                                </button>
+                                // Filtra apenas as categorias Raiz (Principais)
+                                var raizes = categoriasDisponiveis.Where(c => c.CategoriaPaiId == null || !categoriasDisponiveis.Any(x => x.Id == c.CategoriaPaiId)).ToList();
+
+                                @foreach (var cat in raizes)
+                                {
+                                    @RenderCategoriaTree(cat)
+                                }
                             }
                         </div>
                     </div>
@@ -52,10 +105,10 @@
                     <div>
                         <label class="form-label small text-muted text-uppercase fw-bold">Ordenar por</label>
                         <select class="form-select form-select-sm" @onchange="OrdenarProdutos">
-                            <option value="padrao">Padrão (Mais recentes)</option>
-                            <option value="menor_preco">Preço: Menor para Maior</option>
-                            <option value="maior_preco">Preço: Maior para Menor</option>
-                            <option value="az">Nome: A - Z</option>
+                            <option value="padrao">✨ Destaques</option>
+                            <option value="menor_preco">💲 Preço: Menor para Maior</option>
+                            <option value="maior_preco">💲 Preço: Maior para Menor</option>
+                            <option value="az">🔤 Nome: A - Z</option>
                         </select>
                     </div>
 
@@ -66,8 +119,8 @@
         <div class="col-lg-9">
 
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="fw-bold m-0">Catálogo</h3>
-                <span class="badge bg-light text-dark border">
+                <h3 class="fw-bold m-0 text-dark">Catálogo</h3>
+                <span class="badge bg-white text-secondary border shadow-sm rounded-pill px-3 py-2">
                     @produtosFiltrados.Count produtos encontrados
                 </span>
             </div>
@@ -76,49 +129,61 @@
             {
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2">A carregar produtos...</p>
+                    <p class="mt-2 text-muted">A carregar produtos...</p>
                 </div>
             }
             else if (!produtosFiltrados.Any())
             {
-                <div class="alert alert-warning text-center py-5">
-                    <i class="bi bi-emoji-frown fs-1"></i>
-                    <h4 class="mt-3">Ups! Nada encontrado.</h4>
-                    <p>Tente mudar os filtros ou a pesquisa.</p>
-                    <button class="btn btn-outline-dark" @onclick="LimparTudo">Limpar Filtros</button>
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="bi bi-search fs-1 text-muted opacity-50"></i>
+                    </div>
+                    <h5 class="fw-bold">Nenhum produto encontrado</h5>
+                    <p class="text-muted">Tente ajustar os filtros ou pesquisar por outro termo.</p>
+                    <button class="btn btn-outline-primary mt-2" @onclick="LimparTudo">Limpar Filtros</button>
                 </div>
             }
             else
             {
-                <div class="row row-cols-1 row-cols-md-3 g-4">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
                     @foreach (var p in produtosFiltrados)
                     {
                         <div class="col">
-                            <div class="card h-100 shadow-sm border-0 hover-effect">
-                                <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center position-relative">
+                            <div class="card h-100 shadow-sm border-0 hover-card">
+                                <div class="position-relative bg-light" style="height: 220px; overflow: hidden;">
                                     @if (!string.IsNullOrEmpty(p.ImagemUrl))
                                     {
-                                        <img src="@(p.ImagemUrl + "?v=" + DateTime.Now.Ticks)" class="card-img-top h-100 w-100" style="object-fit: cover;">
+                                        <img src="@(p.ImagemUrl + "?v=" + DateTime.Now.Ticks)" class="card-img-top h-100 w-100" style="object-fit: cover; transition: transform 0.3s ease;">
                                     }
                                     else
                                     {
-                                        <i class="bi bi-camera text-muted fs-1"></i>
+                                        <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                            <i class="bi bi-camera fs-1 opacity-50"></i>
+                                        </div>
                                     }
 
-                                    <span class="position-absolute top-0 end-0 bg-success text-white px-2 py-1 m-2 rounded fw-bold">
-                                        @p.PrecoFinal.ToString("C")
-                                    </span>
+                                    <div class="position-absolute bottom-0 start-0 m-2">
+                                        <span class="badge bg-dark bg-opacity-75 backdrop-blur">
+                                            @p.PrecoFinal.ToString("C")
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div class="card-body">
-                                    <h6 class="card-title text-truncate fw-bold" title="@p.Titulo">@p.Titulo</h6>
-                                    <small class="text-muted">@p.Categoria?.Nome</small>
-                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <div class="mb-auto">
+                                        <small class="text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">
+                                            @p.Categoria?.Nome
+                                        </small>
+                                        <h6 class="card-title fw-bold mt-1 text-truncate" title="@p.Titulo">
+                                            @p.Titulo
+                                        </h6>
+                                    </div>
 
-                                <div class="card-footer bg-white border-top-0 pb-3">
-                                    <a href="/produto/@p.Id" class="btn btn-outline-primary w-100">
-                                        Ver Detalhes
-                                    </a>
+                                    <div class="mt-3">
+                                        <a href="/produto/@p.Id" class="btn btn-outline-primary w-100 btn-sm rounded-pill">
+                                            Ver Detalhes
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -130,21 +195,52 @@
 </div>
 
 <style>
-    .hover-effect {
-        transition: transform 0.2s;
+    .hover-card {
+        transition: all 0.3s ease;
     }
 
-        .hover-effect:hover {
+        .hover-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
         }
+
+            .hover-card:hover img {
+                transform: scale(1.05);
+            }
+
+    .tree-btn {
+        transition: all 0.2s;
+        border-radius: 4px;
+    }
+
+        .tree-btn:hover:not(.selected) {
+            background-color: #e9ecef !important;
+            padding-left: 20px !important; /* Efeito de deslize */
+        }
+
+    .backdrop-blur {
+        backdrop-filter: blur(4px);
+    }
+
+    /* Scrollbar personalizada para a lista de categorias */
+    .category-tree::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .category-tree::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .category-tree::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 3px;
+    }
 </style>
 
 @code {
     private List<Produto> todosProdutos = new();
     private List<Produto> produtosFiltrados = new();
     private List<Categoria> categoriasDisponiveis = new();
-
-    // MUDANÇA: Agora usamos um HashSet para guardar vários IDs
     private HashSet<int> categoriasSelecionadas = new();
 
     private bool carregando = true;
@@ -155,20 +251,28 @@
     {
         try
         {
-            var resultado = await ProdutoService.GetProdutosAsync();
+            carregando = true;
 
-            if (resultado != null)
+            // 1. Dispara as duas tarefas ao mesmo tempo (Paralelismo para ser rápido)
+            var taskProdutos = ProdutoService.GetProdutosAsync();
+            var taskCategorias = ProdutoService.GetCategoriasAsync();
+
+            await Task.WhenAll(taskProdutos, taskCategorias);
+
+            // 2. Guarda os Produtos
+            var resultadoProdutos = await taskProdutos;
+            if (resultadoProdutos != null)
             {
-                todosProdutos = resultado.Where(p => p.IsAtivo).ToList();
+                todosProdutos = resultadoProdutos.Where(p => p.IsAtivo).ToList();
                 produtosFiltrados = new List<Produto>(todosProdutos);
+            }
 
-                categoriasDisponiveis = todosProdutos
-                    .Select(p => p.Categoria)
-                    .Where(c => c != null)
-                    .GroupBy(c => c!.Id)
-                    .Select(g => g.First()!)
-                    .OrderBy(c => c.Nome)
-                    .ToList();
+            // 3. Guarda as Categorias (AQUI ESTÁ A CORREÇÃO!)
+            // Em vez de extrair dos produtos, usamos a lista completa que veio da API
+            var resultadoCategorias = await taskCategorias;
+            if (resultadoCategorias != null)
+            {
+                categoriasDisponiveis = resultadoCategorias.OrderBy(c => c.Nome).ToList();
             }
         }
         catch (Exception ex)
@@ -181,25 +285,50 @@
         }
     }
 
+    // 1. Função Auxiliar: Encontra todos os IDs da "família" (Pai + Filhos + Netos)
+    private void ObterIdsComDescendentes(int idCategoriaPai, HashSet<int> listaAcumulada)
+    {
+        // Adiciona o próprio pai
+        listaAcumulada.Add(idCategoriaPai);
+
+        // Procura quem são os filhos deste pai na lista de todas as categorias
+        var filhos = categoriasDisponiveis.Where(c => c.CategoriaPaiId == idCategoriaPai);
+
+        foreach (var filho in filhos)
+        {
+            // (Recursividade) Para cada filho, vai buscar os filhos dele também
+            ObterIdsComDescendentes(filho.Id, listaAcumulada);
+        }
+    }
+
+    // 2. A Função de Filtrar Atualizada
     private void FiltrarProdutos()
     {
         var query = todosProdutos.AsEnumerable();
 
-        // 1. FILTRO DE CATEGORIAS (MÚLTIPLO)
-        // Se a lista tiver itens, só mostra produtos que pertençam a uma dessas categorias
+        // --- LÓGICA NOVA AQUI ---
         if (categoriasSelecionadas.Count > 0)
         {
-            query = query.Where(p => p.CategoriaId.HasValue &&
-                                     categoriasSelecionadas.Contains(p.CategoriaId.Value));
-        }
+            // Criamos uma "Super Lista" que vai ter os IDs selecionados E os seus filhos
+            var idsExpandidos = new HashSet<int>();
 
-        // 2. Filtro de Texto
+            foreach (var idSelecionado in categoriasSelecionadas)
+            {
+                ObterIdsComDescendentes(idSelecionado, idsExpandidos);
+            }
+
+            // Agora filtramos se o produto está nessa Super Lista
+            query = query.Where(p => p.CategoriaId.HasValue && idsExpandidos.Contains(p.CategoriaId.Value));
+        }
+        // -------------------------
+
+        // Filtro de Texto (Mantém igual)
         if (!string.IsNullOrWhiteSpace(termoPesquisa))
         {
             query = query.Where(p => p.Titulo.Contains(termoPesquisa, StringComparison.OrdinalIgnoreCase));
         }
 
-        // 3. Ordenação
+        // Ordenação (Mantém igual)
         query = ordemAtual switch
         {
             "menor_preco" => query.OrderBy(p => p.PrecoFinal),
@@ -211,17 +340,13 @@
         produtosFiltrados = query.ToList();
     }
 
-    // --- Lógica para Adicionar/Remover Categoria ---
     private void AlternarCategoria(int idCategoria)
     {
         if (categoriasSelecionadas.Contains(idCategoria))
-        {
-            categoriasSelecionadas.Remove(idCategoria); // Se já lá estava, remove
-        }
+            categoriasSelecionadas.Remove(idCategoria);
         else
-        {
-            categoriasSelecionadas.Add(idCategoria); // Se não estava, adiciona
-        }
+            categoriasSelecionadas.Add(idCategoria);
+
         FiltrarProdutos();
     }
 

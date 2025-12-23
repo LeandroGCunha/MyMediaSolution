@@ -1,7 +1,13 @@
 ﻿@page "/carrinho"
 @using MyMedia.Client.RCL.Services
+@using MyMedia.Client.RCL.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Json
+
 @inject CarrinhoService CarrinhoSvc
 @inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container mt-5">
     <h2 class="mb-4"><i class="bi bi-cart3"></i> O meu Carrinho</h2>
@@ -17,6 +23,7 @@
     else
     {
         <div class="row">
+            @* --- COLUNA DA ESQUERDA: LISTA DE PRODUTOS --- *@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-0">
@@ -58,7 +65,6 @@
                                                        value="@item.Quantidade"
                                                        @onchange="@(e => AtualizarQtd(item, e.Value))" />
                                             </div>
-
                                             @if (item.Quantidade >= item.Produto.Stock)
                                             {
                                                 <small class="text-danger fw-bold" style="font-size: 0.7rem;">
@@ -71,7 +77,7 @@
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => Remover(item)">
-                                                <i class="bi bi-trash"></i>Remover
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -82,6 +88,7 @@
                 </div>
             </div>
 
+            @* --- COLUNA DA DIREITA: RESUMO E BOTÃO MÁGICO --- *@
             <div class="col-md-4">
                 <div class="card shadow border-primary">
                     <div class="card-header bg-primary text-white">
@@ -97,9 +104,26 @@
                             <span class="fs-4">Total a Pagar:</span>
                             <strong class="fs-4 text-primary">@CarrinhoSvc.Total().ToString("C")</strong>
                         </div>
-                        <button class="btn btn-success w-100 btn-lg" onclick="alert('Checkout em breve...')">
-                            Finalizar Compra <i class="bi bi-arrow-right"></i>
-                        </button>
+
+                        @* AQUI ESTÁ A LÓGICA DO BOTÃO *@
+                        <AuthorizeView>
+                            <Authorized>
+                                @* MUDANÇA: AGORA VAI PARA O CHECKOUT, NÃO COMPRA LOGO *@
+                                <button class="btn btn-success w-100 btn-lg" @onclick="IrParaCheckout">
+                                    <span>Ir para Pagamento <i class="bi bi-arrow-right"></i></span>
+                                </button>
+                            </Authorized>
+                            <NotAuthorized>
+                                @* SE FOR ANÓNIMO: Manda logar *@
+                                <button class="btn btn-warning w-100 btn-lg" @onclick="IrParaLogin">
+                                    🔒 Login para Comprar
+                                </button>
+                                <small class="text-muted text-center d-block mt-2">
+                                    Precisa de conta para finalizar a encomenda.
+                                </small>
+                            </NotAuthorized>
+                        </AuthorizeView>
+
                     </div>
                 </div>
             </div>
@@ -130,8 +154,19 @@
     {
         if (int.TryParse(valorInput?.ToString(), out int novaQtd))
         {
-            // O serviço já trata de cortar se for maior que o stock
             CarrinhoSvc.AtualizarQuantidade(item.Produto, novaQtd);
         }
+    }
+
+    private void IrParaLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+    // --- MUDANÇA PRINCIPAL AQUI ---
+    // Em vez de chamar a API, simplesmente mudamos de página
+    private void IrParaCheckout()
+    {
+        Navigation.NavigateTo("/checkout");
     }
 }

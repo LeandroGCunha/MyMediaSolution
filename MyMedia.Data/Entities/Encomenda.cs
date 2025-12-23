@@ -22,5 +22,10 @@ namespace MyMedia.Data.Entities
 
         // Lista de produtos comprados
         public List<ItemEncomenda> Itens { get; set; } = new();
+
+        public string Morada { get; set; } = string.Empty;
+        public string Cidade { get; set; } = string.Empty;
+        public string CodigoPostal { get; set; } = string.Empty;
+        public string MetodoPagamento { get; set; } = string.Empty;
     }
 }

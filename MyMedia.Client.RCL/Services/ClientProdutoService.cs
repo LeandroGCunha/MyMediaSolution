@@ -26,5 +26,12 @@ namespace MyMedia.Client.RCL.Services
         {
             return await _httpClient.GetFromJsonAsync<Produto>($"api/produtos/{id}");
         }
+
+        public async Task<List<Categoria>> GetCategoriasAsync()
+        {
+            var resultado = await _httpClient.GetFromJsonAsync<List<Categoria>>("api/produtos/categorias");
+            return resultado ?? new List<Categoria>();
+        }
+
     }
 }

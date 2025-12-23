@@ -41,5 +41,11 @@ namespace MyMedia.API.Controllers
 
             return produto;
         }
+        [HttpGet("categorias")]
+        public async Task<ActionResult<List<Categoria>>> GetCategorias()
+        {
+            // Carrega todas as categorias da BD
+            return await _context.Categorias.ToListAsync();
+        }
     }
 }

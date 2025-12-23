@@ -15,4 +15,8 @@
     <ProjectReference Include="..\MyMedia.Data\MyMedia.Data.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\MyMedia.Client.RCL\MyMedia.Client.RCL.csproj" />
+	</ItemGroup>
+
 </Project>

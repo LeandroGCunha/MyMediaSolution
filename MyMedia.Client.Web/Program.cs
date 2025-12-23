@@ -1,5 +1,5 @@
 using MyMedia.Client.Web.Components;
-using MyMedia.Client.RCL.Services;
+using MyMedia.Client.RCL.Services; // <--- ESTA LINHA É OBRIGATÓRIA
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.IO;
@@ -42,9 +42,22 @@ builder.Services.AddHttpClient<ClientProdutoService>(client =>
 
 builder.Services.AddScoped<CarrinhoService>();
 
-// 3. SEGURANÇA (AUTH)
+// ===========================================================================
+// 3. SEGURANÇA (AUTH) - CORRIGIDO
+// ===========================================================================
 builder.Services.AddAuthorizationCore();
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+
+// 1. Regista o Provider Concreto (Este é o "Coração")
+builder.Services.AddScoped<CustomAuthStateProvider>();
+
+// 2. O ERRO ESTAVA AQUI: 
+// Em vez de criar um novo, dizemos ao Blazor: "Usa aquele que criámos na linha de cima"
+builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+    sp.GetRequiredService<CustomAuthStateProvider>());
+
+// 3. O teu serviço precisa do CustomAuthStateProvider, e agora vai receber a MESMA instância
+builder.Services.AddScoped<ClientAuthService>();
+
 builder.Services.AddCascadingAuthenticationState();
 
 

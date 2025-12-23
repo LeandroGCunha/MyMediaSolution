@@ -123,8 +123,8 @@ else
                 // Aqui pegamos 10 produtos para o slider (pode mudar o número)
                 produtosDestaque = produtos
                     .Where(p => p.IsAtivo)
-                    .OrderByDescending(p => p.PrecoFinal) // Exemplo: Os mais caros primeiro
-                    .Take(10)
+                    .OrderBy(p => Guid.NewGuid()) 
+                    .Take(5)
                     .ToList();
             }
         }

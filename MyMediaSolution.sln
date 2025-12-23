@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMedia.Data", "MyMedia.Data\MyMedia.Data.csproj", "{F6CF896F-3AAF-4A3C-BDA9-F7C23130BD15}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMedia.API", "MyMedia.API\MyMedia.API.csproj", "{F827494F-7D25-4215-BA48-2BB4293C4CF7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9374E215-6B59-459B-939C-47417DFDC3F6} = {9374E215-6B59-459B-939C-47417DFDC3F6}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMedia.Client.RCL", "MyMedia.Client.RCL\MyMedia.Client.RCL.csproj", "{9374E215-6B59-459B-939C-47417DFDC3F6}"
 EndProject

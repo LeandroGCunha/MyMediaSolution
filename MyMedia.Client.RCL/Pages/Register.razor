@@ -1,0 +1,119 @@
+﻿@page "/register"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using MyMedia.Client.RCL.Models
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white text-center">
+                    <h3>📝 Criar Conta</h3>
+                </div>
+                <div class="card-body">
+
+                    <EditForm Model="@RegisterModel" OnValidSubmit="HandleRegistration">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="RegisterModel.Email" class="form-control" placeholder="exemplo@email.com" />
+                            <ValidationMessage For="@(() => RegisterModel.Email)" />
+                        </div>
+
+                        @* --- NOVO CAMPO: NOME --- *@
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <InputText @bind-Value="RegisterModel.NomeCompleto" class="form-control" placeholder="O teu nome" />
+                            <ValidationMessage For="@(() => RegisterModel.NomeCompleto)" />
+                        </div>
+
+                        @* --- NOVO CAMPO: NIF --- *@
+                        <div class="mb-3">
+                            <label class="form-label">NIF</label>
+                            <InputText @bind-Value="RegisterModel.NIF" class="form-control" placeholder="123456789" />
+                            <ValidationMessage For="@(() => RegisterModel.NIF)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Palavra-Passe</label>
+                            <InputText @bind-Value="RegisterModel.Password" type="password" class="form-control" placeholder="******" />
+                            <ValidationMessage For="@(() => RegisterModel.Password)" />
+                            <small class="text-muted" style="font-size: 0.7em">Mínimo 6 caracteres, 1 maiúscula, 1 número.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Confirmar Palavra-Passe</label>
+                            <InputText @bind-Value="RegisterModel.ConfirmPassword" type="password" class="form-control" placeholder="******" />
+                            <ValidationMessage For="@(() => RegisterModel.ConfirmPassword)" />
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">
+                            Registar
+                        </button>
+
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger mt-3 text-center">
+                                @mensagemErro
+                            </div>
+                        }
+                    </EditForm>
+
+                </div>
+                <div class="card-footer text-center">
+                    <small>Já tem conta? <a href="/login">Entrar aqui</a></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Inicializamos o modelo
+    public RegisterDto RegisterModel { get; set; } = new RegisterDto();
+
+    private string mensagemErro = "";
+
+    private async Task HandleRegistration()
+    {
+        mensagemErro = ""; // Limpa erros anteriores
+
+        try
+        {
+            // 1. Enviar dados para a API
+            var response = await Http.PostAsJsonAsync("api/auth/register", RegisterModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // 2. Se correu bem, mandamos o utilizador para o Login
+                Nav.NavigateTo("/login");
+            }
+            else
+            {
+                // 3. Se falhou, tentamos ler o erro que a API mandou
+                var erroDetalhado = await response.Content.ReadAsStringAsync();
+
+                // Se o erro for muito feio (JSON complexo), mostramos um genérico
+                if (erroDetalhado.Contains("DuplicateUserName"))
+                {
+                    mensagemErro = "Este email já está registado.";
+                }
+                else if (erroDetalhado.Contains("Password"))
+                {
+                    mensagemErro = "A password não cumpre os requisitos (Maiúscula, Número, Símbolo).";
+                }
+                else
+                {
+                    mensagemErro = "Erro ao registar. Verifique os dados.";
+                }
+            }
+        }
+        catch (Exception)
+        {
+            mensagemErro = "Erro ao ligar ao servidor.";
+        }
+    }
+}

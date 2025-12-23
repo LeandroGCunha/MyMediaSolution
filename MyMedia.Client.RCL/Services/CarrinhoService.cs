@@ -68,6 +68,12 @@ namespace MyMedia.Client.RCL.Services
             }
         }
 
+        public void Limpar()
+        {
+            _items.Clear();
+            NotificarMudanca();
+        }
+
         public List<CarrinhoItem> GetItems() => _items;
         public decimal Total() => _items.Sum(x => x.Produto.PrecoFinal * x.Quantidade);
         public int ContarItens() => _items.Sum(x => x.Quantidade);

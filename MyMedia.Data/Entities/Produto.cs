@@ -10,7 +10,7 @@ namespace MyMedia.Data.Entities
         [Required]
         public string Titulo { get; set; }
 
-        public string Descricao { get; set; }
+        public string? Descricao { get; set; }
 
 
         [Column(TypeName = "decimal(18,2)")]
