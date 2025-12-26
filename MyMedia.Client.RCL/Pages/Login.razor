@@ -1,11 +1,5 @@
 @page "/login"
-@using System.Net.Http.Json
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Forms
-@using MyMedia.Client.RCL.Models
-@using MyMedia.Client.RCL.Services
-@inject HttpClient Http
-@inject AuthenticationStateProvider AuthStateProvider
+
 @inject NavigationManager Nav
 
 <div class="container mt-5">
@@ -17,30 +11,42 @@
                 </div>
                 <div class="card-body">
 
-                    <EditForm Model="@LoginModel" OnValidSubmit="HandleLogin">
-                        <DataAnnotationsValidator />
+                    @* MENSAGEM DE ERRO *@
+                    @* Se a URL tiver ?error=..., mostramos o alerta *@
+                    @if (!string.IsNullOrEmpty(ErrorCode))
+                    {
+                        <div class="alert alert-danger text-center">
+                            Utilizador ou password incorretos.
+                        </div>
+                    }
+
+                    @* ?? AQUI ESTÁ A MUDANÇA CRÍTICA ?? *@
+                    @* 1. Usamos <form> normal (não EditForm) *@
+                    @* 2. Action="/account/login" aponta para o Program.cs *@
+                    @* 3. Method="post" é obrigatório *@
+                    <form action="/account/login" method="post">
 
                         <div class="mb-3">
-                            <label class="form-label">Nome de Utilizador</label>
-                            <InputText @bind-Value="LoginModel.UserName" class="form-control" placeholder="Ex: admin" />
+                            <label class="form-label">Email / Utilizador</label>
+                            @* O 'name="email"' tem de bater certo com o Program.cs *@
+                            <input name="email" type="text" class="form-control" placeholder="Ex: admin" required />
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Palavra-Passe</label>
-                            <InputText @bind-Value="LoginModel.Password" type="password" class="form-control" placeholder="******" />
+                            @* O 'name="password"' tem de bater certo com o Program.cs *@
+                            <input name="password" type="password" class="form-control" placeholder="******" required />
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100">
                             Entrar
                         </button>
 
-                        @if (!string.IsNullOrEmpty(mensagemErro))
-                        {
-                            <div class="alert alert-danger mt-3 text-center">
-                                @mensagemErro
-                            </div>
-                        }
-                    </EditForm>
+                    </form>
+
+                    <div class="mt-3 text-center">
+                        <a href="/registar">Criar Conta</a>
+                    </div>
 
                 </div>
             </div>
@@ -49,38 +55,8 @@
 </div>
 
 @code {
-    // IMPORTANTE: Usar { get; set; } resolve o erro da "lambda expression"
-    public LoginDto LoginModel { get; set; } = new LoginDto();
-
-    private string mensagemErro = "";
-
-    private async Task HandleLogin()
-    {
-        try
-        {
-            // 1. Enviar dados para a API (O endereço deve bater certo com o AuthController)
-            var response = await Http.PostAsJsonAsync("api/auth/login", LoginModel);
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 2. Se a API disser OK, avisamos o sistema de segurança do Blazor
-                if (AuthStateProvider is CustomAuthStateProvider customProvider)
-                {
-                    customProvider.NotifyLogin();
-                }
-
-                // 3. Redirecionar para a página inicial
-                Nav.NavigateTo("/");
-            }
-            else
-            {
-                // Se a API devolver erro (400 ou 401)
-                mensagemErro = "Utilizador ou password incorretos.";
-            }
-        }
-        catch (Exception)
-        {
-            mensagemErro = "Erro ao ligar ao servidor.";
-        }
-    }
+    // Isto serve apenas para ler se houve erro no login
+    // O Program.cs redireciona para /login?error=true se falhar
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorCode { get; set; }
 }

@@ -4,9 +4,9 @@
              xmlns:local="clr-namespace:MyMedia.Client.Mobile"
              x:Class="MyMedia.Client.Mobile.MainPage">
 
-    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
+    <BlazorWebView HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type local:Components.Routes}" />
+            <RootComponent Selector="#app" ComponentType="{x:Type local:Routes}" />
         </BlazorWebView.RootComponents>
     </BlazorWebView>
 
