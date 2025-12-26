@@ -1,0 +1,86 @@
+﻿@page "/minhas-encomendas"
+@using MyMedia.Data.Entities
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Json
+@attribute [Authorize]
+@inject HttpClient Http
+
+<div class="container mt-5">
+    <h3>📦 O Meu Histórico de Encomendas</h3>
+
+    @if (listaEncomendas == null)
+    {
+        <p><em>A carregar...</em></p>
+    }
+    else if (listaEncomendas.Count == 0)
+    {
+        <div class="alert alert-info">
+            Ainda não fez nenhuma encomenda. <a href="/">Ir comprar!</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Data</th>
+                        <th>Estado</th>
+                        <th>Produtos</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var enc in listaEncomendas)
+                    {
+                        <tr>
+                            <td>@enc.Data.ToString("dd/MM/yyyy HH:mm")</td>
+
+                            <td>
+                                <span class="badge bg-primary">@enc.Estado</span>
+                            </td>
+
+                            <td>
+                                <ul class="list-unstyled mb-0" style="font-size: 0.9rem;">
+                                    @if (enc.Itens != null)
+                                    {
+                                        @foreach (var item in enc.Itens)
+                                        {
+                                            <li>
+                                                <strong>@item.Quantidade x</strong>
+                                                @(item.Produto?.Titulo ?? "Produto Removido")
+                                            </li>
+                                        }
+                                    }
+                                </ul>
+                            </td>
+
+                            <td class="fw-bold text-success">
+                                @enc.ValorTotal.ToString("C")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Encomenda>? listaEncomendas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Nota o "/minhas" no fim, igual ao que criámos no Controller
+            listaEncomendas = await Http.GetFromJsonAsync<List<Encomenda>>("api/encomendas/minhas");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro: {ex.Message}");
+            listaEncomendas = new List<Encomenda>(); // Lista vazia para não dar erro visual
+        }
+    }
+}

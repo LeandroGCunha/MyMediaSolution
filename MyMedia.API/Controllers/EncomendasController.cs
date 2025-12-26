@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore; // Necessário para o .Include e .ToListAsync
 using MyMedia.Client.RCL.Models;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
@@ -9,7 +10,7 @@ namespace MyMedia.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize] // Ninguém entra aqui sem login!
     public class EncomendasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -19,6 +20,9 @@ namespace MyMedia.API.Controllers
             _context = context;
         }
 
+        // ============================================================
+        // 1. FAZER UMA NOVA ENCOMENDA (Checkout)
+        // ============================================================
         [HttpPost]
         public async Task<IActionResult> Checkout([FromBody] CheckoutDto pedido)
         {
@@ -36,7 +40,7 @@ namespace MyMedia.API.Controllers
                 return Unauthorized("Utilizador não identificado.");
             }
 
-            // 3. Criar a Encomenda
+            // 3. Criar a "Cabeça" da Encomenda
             var novaEncomenda = new Encomenda
             {
                 ApplicationUserId = userId,
@@ -51,31 +55,29 @@ namespace MyMedia.API.Controllers
 
             decimal totalCalculado = 0;
 
-            // 4. Processar cada produto
+            // 4. Processar cada produto (Validar Stock e Deduzir)
             foreach (var itemDto in pedido.Itens)
             {
                 var produtoDb = await _context.Produtos.FindAsync(itemDto.ProdutoId);
 
-                // Se o produto não existir, salta à frente
+                // Se o produto não existir, ignora
                 if (produtoDb == null) continue;
 
-                // --- 🔴 NOVO: VALIDAÇÃO DE STOCK ---
+                // --- VALIDAÇÃO DE STOCK ---
                 if (produtoDb.Stock < itemDto.Quantidade)
                 {
-                    // Se não houver stock suficiente, cancelamos tudo e avisamos o cliente
                     return BadRequest($"Lamentamos, mas já não temos stock suficiente do produto: {produtoDb.Titulo}");
                 }
 
-                // --- 🔴 NOVO: REDUZIR O STOCK ---
+                // --- REDUZIR O STOCK ---
                 produtoDb.Stock -= itemDto.Quantidade;
-                // (O Entity Framework vai detetar esta mudança e gravar automaticamente no final)
 
                 // Criar o detalhe da encomenda
                 var itemEncomenda = new ItemEncomenda
                 {
                     ProdutoId = produtoDb.Id,
                     Quantidade = itemDto.Quantidade,
-                    PrecoUnitario = produtoDb.PrecoBase // Confirmado que usas PrecoBase
+                    PrecoUnitario = produtoDb.PrecoBase
                 };
 
                 novaEncomenda.Itens.Add(itemEncomenda);
@@ -89,9 +91,7 @@ namespace MyMedia.API.Controllers
             try
             {
                 _context.Encomendas.Add(novaEncomenda);
-
-                // O SaveChangesAsync grava a Encomenda E atualiza o Stock dos produtos ao mesmo tempo!
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(); // Grava Encomenda e Atualiza Stock
 
                 return Ok(new { Message = "Encomenda registada com sucesso!", Id = novaEncomenda.Id });
             }
@@ -99,6 +99,29 @@ namespace MyMedia.API.Controllers
             {
                 return StatusCode(500, $"Erro ao gravar encomenda: {ex.Message}");
             }
+        }
+
+        // ============================================================
+        // 2. LER AS MINHAS ENCOMENDAS (Histórico)
+        // ============================================================
+        [HttpGet("minhas")]
+        public async Task<ActionResult<List<Encomenda>>> GetMinhasEncomendas()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var encomendas = await _context.Encomendas
+                .Include(e => e.Itens)
+                .ThenInclude(i => i.Produto)
+                .Where(e => e.ApplicationUserId == userId)
+                .OrderByDescending(e => e.Data)
+                .ToListAsync();
+
+            return Ok(encomendas);
         }
     }
 }

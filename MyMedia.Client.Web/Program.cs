@@ -1,7 +1,8 @@
 using MyMedia.Client.Web.Components;
-using MyMedia.Client.RCL.Services; // <--- ESTA LINHA É OBRIGATÓRIA
+using MyMedia.Client.RCL.Services;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Authentication.Cookies; // <--- OBRIGATÓRIO PARA O F5
 using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,30 +12,20 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // ===========================================================================
-// 1. O SEGREDO DO F5 (Configuração dos Cookies) ??
+// 1. O SEGREDO DO F5 (Configuração dos Cookies e HTTP)
 // ===========================================================================
 
-// A) Permite ler os cookies do Browser
 builder.Services.AddHttpContextAccessor();
-
-// B) Regista o nosso "Carteiro" (Certifica-te que criaste o ficheiro CookieHandler.cs!)
 builder.Services.AddTransient<CookieHandler>();
 
-// C) Configura o HttpClient "API" para usar o Carteiro
 builder.Services.AddHttpClient("API", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7198/");
 })
-.AddHttpMessageHandler<CookieHandler>(); // <--- Aqui é que a magia acontece!
+.AddHttpMessageHandler<CookieHandler>();
 
-// D) Diz ao Blazor: "Quando pedirem um HttpClient normal, usa este que tem o CookieHandler"
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("API"));
 
-// ===========================================================================
-
-
-// 2. SERVIÇO DE PRODUTOS
-// (Podes deixar assim. Se quiseres produtos privados no futuro, adicionas .AddHttpMessageHandler<CookieHandler>() aqui também)
 builder.Services.AddHttpClient<ClientProdutoService>(client =>
 {
     client.BaseAddress = new Uri("https://localhost:7198/");
@@ -43,27 +34,40 @@ builder.Services.AddHttpClient<ClientProdutoService>(client =>
 builder.Services.AddScoped<CarrinhoService>();
 
 // ===========================================================================
-// 3. SEGURANÇA (AUTH) - CORRIGIDO
+// 2. SEGURANÇA (AUTH) - AQUI ESTAVA A FALTAR O ESSENCIAL ???
 // ===========================================================================
-builder.Services.AddAuthorizationCore();
 
-// 1. Regista o Provider Concreto (Este é o "Coração")
+// --- ?? BLOCO NOVO OBRIGATÓRIO ?? ---
+// Isto ensina o servidor a ler o Cookie quando dás F5
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login"; // Se não tiver logado, manda para aqui
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    });
+// ------------------------------------
+
+builder.Services.AddAuthorization(); // (Mudei de Core para Authorization completo, é mais seguro aqui)
+
 builder.Services.AddScoped<CustomAuthStateProvider>();
 
-// 2. O ERRO ESTAVA AQUI: 
-// Em vez de criar um novo, dizemos ao Blazor: "Usa aquele que criámos na linha de cima"
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CustomAuthStateProvider>());
 
-// 3. O teu serviço precisa do CustomAuthStateProvider, e agora vai receber a MESMA instância
 builder.Services.AddScoped<ClientAuthService>();
-
 builder.Services.AddCascadingAuthenticationState();
 
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ===========================================================================
+// 3. PIPELINE (Ordem dos pedidos)
+// ===========================================================================
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -86,10 +90,13 @@ try
         });
     }
 }
-catch
-{
-    // Ignora erros
-}
+catch { /* Ignora */ }
+
+// --- ?? BLOCO NOVO OBRIGATÓRIO ?? ---
+// Sem isto, o servidor ignora o login no F5
+app.UseAuthentication();
+app.UseAuthorization();
+// ------------------------------------
 
 app.UseAntiforgery();
 
