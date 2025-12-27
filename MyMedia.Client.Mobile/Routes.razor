@@ -1,0 +1,20 @@
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using MyMedia.Client.RCL.Layout
+@using Microsoft.AspNetCore.Components.Authorization 
+@* 👆 Garante que tens este using da Authorization aqui em cima *@
+
+<CascadingAuthenticationState>
+    @* 👇 O Router fica DENTRO do CascadingAuthenticationState *@
+    <Router AppAssembly="@typeof(MauiProgram).Assembly" 
+            AdditionalAssemblies="new[] { typeof(MainLayout).Assembly }">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Desculpa, não encontrámos nada neste endereço.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

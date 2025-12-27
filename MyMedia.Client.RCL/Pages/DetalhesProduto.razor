@@ -4,6 +4,7 @@
 @inject ClientProdutoService ProdutoService
 @inject NavigationManager Navigation
 @inject CarrinhoService Carrinho
+@inject HttpClient Http
 
 <div class="container mt-5">
     @if (produto == null)
@@ -22,7 +23,8 @@
                     <div class="col-md-4 text-center mb-3">
                         @if (!string.IsNullOrEmpty(produto.ImagemUrl))
                         {
-                            <img src="@(produto.ImagemUrl + "?v=" + DateTime.Now.Ticks)"
+                            @* 👇 USAR A FUNÇÃO AQUI *@
+                            <img src="@GetFullImageUrl(produto.ImagemUrl)"
                                  class="img-fluid rounded border shadow-sm"
                                  style="max-height: 400px; width: 100%; object-fit: cover;"
                                  alt="@produto.Titulo" />
@@ -73,21 +75,28 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Usa o serviço para buscar APENAS este produto à API
         produto = await ProdutoService.GetProdutoByIdAsync(Id);
     }
 
-    // --- NOVO MÉTODO PARA ADICIONAR AO CARRINHO ---
     private void AdicionarAoCarrinho()
     {
         if (produto != null)
         {
-            Carrinho.Adicionar(produto);    // Guarda no serviço
+            Carrinho.Adicionar(produto);
         }
     }
 
     private void Voltar()
     {
-        Navigation.NavigateTo("/"); // Volta ao catálogo
+        Navigation.NavigateTo("/");
+    }
+
+    // 👇 FUNÇÃO MÁGICA PARA AS IMAGENS
+    private string GetFullImageUrl(string imagePath)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return "";
+        var baseUrl = Http.BaseAddress?.ToString() ?? "";
+        var urlFinal = $"{baseUrl.TrimEnd('/')}/{imagePath.TrimStart('/')}";
+        return $"{urlFinal}?v={DateTime.Now.Ticks}";
     }
 }

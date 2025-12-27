@@ -1,17 +1,16 @@
-﻿@using MyMedia.Client.RCL.Services
-@using Microsoft.AspNetCore.Components.Routing
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using MyMedia.Client.RCL.Layout
 
-<Router AppAssembly="@typeof(Program).Assembly"
-        AdditionalAssemblies="new[] { typeof(ClientProdutoService).Assembly }">
-
+@* O Router precisa de saber que o MainLayout vem da RCL *@
+<Router AppAssembly="@typeof(App).Assembly"
+        AdditionalAssemblies="new[] { typeof(MyMedia.Client.RCL.Layout.MainLayout).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
-
     <NotFound>
         <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(Layout.MainLayout)">
+        <LayoutView Layout="@typeof(MainLayout)">
             <p role="alert">Sorry, there's nothing at this address.</p>
         </LayoutView>
     </NotFound>

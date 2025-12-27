@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using MyMedia.Client.RCL.Services;
-using MyMedia.Client.RCL; // Para acederes aos teus componentes
 using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
+// 👇 ADICIONA ESTE USING PARA ENCONTRAR OS SERVIÇOS 👇
+using MyMedia.Client.RCL.Services;
 
 namespace MyMedia.Client.Mobile
 {
@@ -24,42 +25,37 @@ namespace MyMedia.Client.Mobile
             builder.Logging.AddDebug();
 #endif
 
-            // ==============================================================
-            // 1. CONFIGURAR A URL DA API (O TRUQUE DO ANDROID) 📱
-            // ==============================================================
-            string apiUrl;
+            // --- 1. API ---
+            string apiUrl = "https://localhost:7198/";
+            if (DeviceInfo.Platform == DevicePlatform.Android) apiUrl = "http://10.0.2.2:5000/";
 
-            if (DeviceInfo.Platform == DevicePlatform.Android)
-            {
-                // No Emulador Android, 10.0.2.2 é o endereço do teu PC
-                // (Nota: Se usares HTTPS, precisas de configuração extra de certificados, 
-                //  por agora vamos tentar HTTP ou aceitar certificados inválidos é complexo.
-                //  O DevTunnels é melhor, mas vamos pelo básico primeiro)
-                apiUrl = "https://10.0.2.2:7198/";
-            }
-            else
-            {
-                // No Windows/Mac, é localhost normal
-                apiUrl = "https://localhost:7198/";
-            }
-
-            // ==============================================================
-            // 2. REGISTAR SERVIÇOS (IGUAL À WEB, MAS SEM COOKIES DO SERVER)
-            // ==============================================================
-
-            // Aqui usamos um HttpClient simples (sem o CookieHandler complexo da Web por enquanto)
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiUrl) });
 
-            // Serviços da RCL
-            builder.Services.AddScoped<ClientProdutoService>();
-            builder.Services.AddScoped<CarrinhoService>();
-
-            // AUTH: No Mobile, o AuthStateProvider tem de ser diferente do da Web
-            // (Mais tarde tratamos disto, para já põe o básico para arrancar)
+            // --- 2. LOGIN (Já tinhas isto) ---
             builder.Services.AddAuthorizationCore();
-            // builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>(); 
+            builder.Services.AddScoped<AuthenticationStateProvider, AuthStateProviderMobile>();
+
+            // --- 3. 👇 SERVIÇOS DO CARRINHO E PRODUTOS (ADICIONA ISTO!) 👇 ---
+            // Tens de registar todos os serviços que usas na RCL
+            builder.Services.AddScoped<CarrinhoService>();
+            builder.Services.AddScoped<ClientProdutoService>();
+
+            // ⚠️ NOTA: Se o teu CarrinhoService usar "LocalStorage", 
+            // vais precisar de instalar o pacote 'Blazored.LocalStorage' no projeto Mobile também
+            // e adicionar: builder.Services.AddBlazoredLocalStorage();
 
             return builder.Build();
+        }
+    }
+
+    // (A classe AuthStateProviderMobile continua aqui em baixo igual...)
+    public class AuthStateProviderMobile : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        {
+            var identity = new ClaimsIdentity();
+            var user = new ClaimsPrincipal(identity);
+            return Task.FromResult(new AuthenticationState(user));
         }
     }
 }

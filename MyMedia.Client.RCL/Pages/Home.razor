@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using MyMedia.Data.Entities
 @using MyMedia.Client.RCL.Services
+@inject HttpClient Http
 @inject ClientProdutoService ProdutoService
 
 <PageTitle>Catálogo MyMedia</PageTitle>
@@ -42,6 +43,7 @@
 }
 else
 {
+    @* --- SLIDER DE DESTAQUES --- *@
     <div class="container-fluid mt-4 mb-5">
         <h3 class="mb-3 ps-3 border-start border-4 border-primary">🔥 Destaques da Semana</h3>
 
@@ -53,7 +55,8 @@ else
                         <div style="height: 180px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center position-relative">
                             @if (!string.IsNullOrEmpty(p.ImagemUrl))
                             {
-                                <img src="@(p.ImagemUrl + "?v=" + DateTime.Now.Ticks)" class="card-img-top h-100 w-100" style="object-fit: cover;">
+                                @* 👇 AQUI: Usamos a função para gerar o link completo *@
+                                <img src="@GetFullImageUrl(p.ImagemUrl)" class="card-img-top h-100 w-100" style="object-fit: cover;">
                             }
                             else
                             {
@@ -75,6 +78,7 @@ else
         </div>
     </div>
 
+    @* --- LISTA DE TODOS OS PRODUTOS --- *@
     <div class="container mb-5">
         <h3 class="mb-4 border-bottom pb-2">Todos os Produtos</h3>
 
@@ -86,7 +90,8 @@ else
                         <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center">
                             @if (!string.IsNullOrEmpty(p.ImagemUrl))
                             {
-                                <img src="@(p.ImagemUrl + "?v=" + DateTime.Now.Ticks)" class="card-img-top h-100 w-100" style="object-fit: cover;">
+                                @* 👇 AQUI: Usamos a função também *@
+                                <img src="@GetFullImageUrl(p.ImagemUrl)" class="card-img-top h-100 w-100" style="object-fit: cover;">
                             }
                             else
                             {
@@ -120,14 +125,29 @@ else
 
             if (produtos != null)
             {
-                // Aqui pegamos 10 produtos para o slider (pode mudar o número)
                 produtosDestaque = produtos
                     .Where(p => p.IsAtivo)
-                    .OrderBy(p => Guid.NewGuid()) 
+                    .OrderBy(p => Guid.NewGuid())
                     .Take(5)
                     .ToList();
             }
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+
+    // 👇 A FUNÇÃO QUE RESOLVE O PROBLEMA DAS IMAGENS
+    // Junta o endereço da API (Tunnel ou Localhost) ao caminho da imagem
+    private string GetFullImageUrl(string imagePath)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return "";
+
+        // Pega no endereço base configurado no Program.cs / MauiProgram.cs
+        var baseUrl = Http.BaseAddress?.ToString() ?? "";
+
+        // Remove barras duplicadas para ficar um link limpo
+        var urlFinal = $"{baseUrl.TrimEnd('/')}/{imagePath.TrimStart('/')}";
+
+        // Adiciona o timestamp para evitar cache velha
+        return $"{urlFinal}?v={DateTime.Now.Ticks}";
     }
 }

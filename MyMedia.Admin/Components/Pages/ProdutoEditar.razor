@@ -45,7 +45,8 @@ else
                             else if (!string.IsNullOrEmpty(produto.ImagemUrl))
                             {
                                 <p class="small text-muted">Imagem Atual:</p>
-                                <img src="@produto.ImagemUrl" width="150" class="img-thumbnail" />
+                                @* 👇 1. CORREÇÃO VISUAL: Apontar para a API *@
+                                <img src="@($"https://localhost:7198/{produto.ImagemUrl}")" width="150" class="img-thumbnail" />
                             }
                             else
                             {
@@ -157,34 +158,38 @@ else
         // --- GRAVAR NOVA IMAGEM (Se houver) ---
         if (novoFicheiroSelecionado != null)
         {
-            // 1. Apagar a imagem antiga se existir e for diferente
+            // 👇 DEFINIR A PASTA DE DESTINO CORRETA (NA API)
+            // Sai do Admin (..) -> Entra na API -> wwwroot
+            var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
+            var pastaImagensApi = Path.Combine(pastaApi, "imagens");
+
+            // Garante que a pasta existe na API
+            if (!Directory.Exists(pastaImagensApi)) Directory.CreateDirectory(pastaImagensApi);
+
+            // 1. APAGAR IMAGEM ANTIGA DA API
             if (!string.IsNullOrEmpty(produto.ImagemUrl))
             {
-                var caminhoAntigo = Path.Combine(Environment.WebRootPath, produto.ImagemUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                // Limpa o URL para ficar apenas o nome do ficheiro (ex: 15.png)
+                var nomeFicheiroAntigo = Path.GetFileName(produto.ImagemUrl.Split('?')[0]);
+                var caminhoAntigo = Path.Combine(pastaImagensApi, nomeFicheiroAntigo);
+
                 if (File.Exists(caminhoAntigo))
                 {
-                    // Nota: O try-catch evita erros se o ficheiro estiver preso pelo Windows
                     try { File.Delete(caminhoAntigo); } catch { }
                 }
             }
 
-            // 2. DEFINIR O NOME COM O ID DO PRODUTO
-            // Exemplo: Se o ID for 15 e a imagem for png, fica "15.png"
+            // 2. GRAVAR NOVA IMAGEM NA API
             var extensao = Path.GetExtension(novoFicheiroSelecionado.Name);
-            var nomeFicheiro = $"{produto.Id}{extensao}";
+            var nomeFicheiroNovo = $"{produto.Id}{extensao}"; // Ex: 15.png
+            var caminhoCompleto = Path.Combine(pastaImagensApi, nomeFicheiroNovo);
 
-            var pastaImagens = Path.Combine(Environment.WebRootPath, "imagens");
-            if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
-
-            var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
-
-            // 3. Gravar (O FileMode.Create substitui o ficheiro se ele já existir)
             await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
             await novoFicheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
 
             // 4. Atualizar o URL na BD
-            // Adicionamos um carimbo de data (?v=...) para o navegador não mostrar a imagem velha (cache)
-            produto.ImagemUrl = $"/imagens/{nomeFicheiro}?v={DateTime.Now.Ticks}";
+            // Nota: O caminho começa com "imagens/" porque na API a pasta "wwwroot" é a raiz
+            produto.ImagemUrl = $"imagens/{nomeFicheiroNovo}?v={DateTime.Now.Ticks}";
         }
 
         // Recalcular Preço

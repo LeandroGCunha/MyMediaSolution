@@ -2,28 +2,23 @@
 @using MyMedia.Data.Entities
 @using MyMedia.Client.RCL.Services
 @inject ClientProdutoService ProdutoService
+@inject HttpClient Http  
 
 <PageTitle>Catálogo Completo - MyMedia</PageTitle>
 
-@* --- 1. DEFINIÇÃO DA ÁRVORE (Movemos para o topo para evitar o erro) --- *@
+@* --- Lógica da Árvore de Categorias (Mantive igual) --- *@
 @{
-    // Declaramos a variável primeiro para permitir recursividade
     RenderFragment<Categoria> RenderCategoriaTree = null!;
-
-    // Definimos o que ela faz (desenha a categoria e procura filhas)
     RenderCategoriaTree = (cat) =>
     @<text>
     @{
         bool isSelected = categoriasSelecionadas.Contains(cat.Id);
-        // Procura subcategorias DENTRO da lista de disponíveis
         var subcategorias = categoriasDisponiveis.Where(sub => sub.CategoriaPaiId == cat.Id).ToList();
     }
-
         <button class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center mb-1 tree-btn @(isSelected ? "btn-primary selected" : "btn-light text-dark")"
                 style="padding-left: @(cat.CategoriaPaiId == null ? "10px" : "15px");
-                           border-left: @(cat.CategoriaPaiId == null ? "3px solid transparent" : "3px solid #dee2e6");"
+                       border-left: @(cat.CategoriaPaiId == null ? "3px solid transparent" : "3px solid #dee2e6");"
                 @onclick="() => AlternarCategoria(cat.Id)">
-
             <span class="text-truncate">
                 @if (cat.CategoriaPaiId != null)
                 {
@@ -31,13 +26,11 @@
                 }
                 @cat.Nome
             </span>
-
             @if (isSelected)
             {
                 <i class="bi bi-check-circle-fill small"></i>
             }
         </button>
-
     @if (subcategorias.Any())
     {
             <div class="ms-3 border-start ps-1 mb-2">
@@ -53,6 +46,7 @@
 <div class="container mt-4">
     <div class="row">
 
+        @* --- COLUNA DA ESQUERDA (FILTROS) --- *@
         <div class="col-lg-3 mb-4">
             <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 1;">
                 <div class="card-header bg-white fw-bold d-flex align-items-center">
@@ -91,9 +85,7 @@
 
                             @if (categoriasDisponiveis.Any())
                             {
-                                // Filtra apenas as categorias Raiz (Principais)
                                 var raizes = categoriasDisponiveis.Where(c => c.CategoriaPaiId == null || !categoriasDisponiveis.Any(x => x.Id == c.CategoriaPaiId)).ToList();
-
                                 @foreach (var cat in raizes)
                                 {
                                     @RenderCategoriaTree(cat)
@@ -116,6 +108,7 @@
             </div>
         </div>
 
+        @* --- COLUNA DA DIREITA (PRODUTOS) --- *@
         <div class="col-lg-9">
 
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -153,7 +146,8 @@
                                 <div class="position-relative bg-light" style="height: 220px; overflow: hidden;">
                                     @if (!string.IsNullOrEmpty(p.ImagemUrl))
                                     {
-                                        <img src="@(p.ImagemUrl + "?v=" + DateTime.Now.Ticks)" class="card-img-top h-100 w-100" style="object-fit: cover; transition: transform 0.3s ease;">
+                                        @* 👇 USAR A FUNÇÃO AQUI *@
+                                        <img src="@GetFullImageUrl(p.ImagemUrl)" class="card-img-top h-100 w-100" style="object-fit: cover; transition: transform 0.3s ease;">
                                     }
                                     else
                                     {
@@ -195,46 +189,15 @@
 </div>
 
 <style>
-    .hover-card {
-        transition: all 0.3s ease;
-    }
-
-        .hover-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-        }
-
-            .hover-card:hover img {
-                transform: scale(1.05);
-            }
-
-    .tree-btn {
-        transition: all 0.2s;
-        border-radius: 4px;
-    }
-
-        .tree-btn:hover:not(.selected) {
-            background-color: #e9ecef !important;
-            padding-left: 20px !important; /* Efeito de deslize */
-        }
-
-    .backdrop-blur {
-        backdrop-filter: blur(4px);
-    }
-
-    /* Scrollbar personalizada para a lista de categorias */
-    .category-tree::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .category-tree::-webkit-scrollbar-track {
-        background: #f1f1f1;
-    }
-
-    .category-tree::-webkit-scrollbar-thumb {
-        background: #ccc;
-        border-radius: 3px;
-    }
+    .hover-card { transition: all 0.3s ease; }
+    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+    .hover-card:hover img { transform: scale(1.05); }
+    .tree-btn { transition: all 0.2s; border-radius: 4px; }
+    .tree-btn:hover:not(.selected) { background-color: #e9ecef !important; padding-left: 20px !important; }
+    .backdrop-blur { backdrop-filter: blur(4px); }
+    .category-tree::-webkit-scrollbar { width: 6px; }
+    .category-tree::-webkit-scrollbar-track { background: #f1f1f1; }
+    .category-tree::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 </style>
 
 @code {
@@ -252,14 +215,11 @@
         try
         {
             carregando = true;
-
-            // 1. Dispara as duas tarefas ao mesmo tempo (Paralelismo para ser rápido)
             var taskProdutos = ProdutoService.GetProdutosAsync();
             var taskCategorias = ProdutoService.GetCategoriasAsync();
 
             await Task.WhenAll(taskProdutos, taskCategorias);
 
-            // 2. Guarda os Produtos
             var resultadoProdutos = await taskProdutos;
             if (resultadoProdutos != null)
             {
@@ -267,8 +227,6 @@
                 produtosFiltrados = new List<Produto>(todosProdutos);
             }
 
-            // 3. Guarda as Categorias (AQUI ESTÁ A CORREÇÃO!)
-            // Em vez de extrair dos produtos, usamos a lista completa que veio da API
             var resultadoCategorias = await taskCategorias;
             if (resultadoCategorias != null)
             {
@@ -285,50 +243,35 @@
         }
     }
 
-    // 1. Função Auxiliar: Encontra todos os IDs da "família" (Pai + Filhos + Netos)
     private void ObterIdsComDescendentes(int idCategoriaPai, HashSet<int> listaAcumulada)
     {
-        // Adiciona o próprio pai
         listaAcumulada.Add(idCategoriaPai);
-
-        // Procura quem são os filhos deste pai na lista de todas as categorias
         var filhos = categoriasDisponiveis.Where(c => c.CategoriaPaiId == idCategoriaPai);
-
         foreach (var filho in filhos)
         {
-            // (Recursividade) Para cada filho, vai buscar os filhos dele também
             ObterIdsComDescendentes(filho.Id, listaAcumulada);
         }
     }
 
-    // 2. A Função de Filtrar Atualizada
     private void FiltrarProdutos()
     {
         var query = todosProdutos.AsEnumerable();
 
-        // --- LÓGICA NOVA AQUI ---
         if (categoriasSelecionadas.Count > 0)
         {
-            // Criamos uma "Super Lista" que vai ter os IDs selecionados E os seus filhos
             var idsExpandidos = new HashSet<int>();
-
             foreach (var idSelecionado in categoriasSelecionadas)
             {
                 ObterIdsComDescendentes(idSelecionado, idsExpandidos);
             }
-
-            // Agora filtramos se o produto está nessa Super Lista
             query = query.Where(p => p.CategoriaId.HasValue && idsExpandidos.Contains(p.CategoriaId.Value));
         }
-        // -------------------------
 
-        // Filtro de Texto (Mantém igual)
         if (!string.IsNullOrWhiteSpace(termoPesquisa))
         {
             query = query.Where(p => p.Titulo.Contains(termoPesquisa, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Ordenação (Mantém igual)
         query = ordemAtual switch
         {
             "menor_preco" => query.OrderBy(p => p.PrecoFinal),
@@ -368,5 +311,14 @@
         categoriasSelecionadas.Clear();
         ordemAtual = "padrao";
         FiltrarProdutos();
+    }
+
+    // 👇 FUNÇÃO MÁGICA PARA AS IMAGENS
+    private string GetFullImageUrl(string imagePath)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return "";
+        var baseUrl = Http.BaseAddress?.ToString() ?? "";
+        var urlFinal = $"{baseUrl.TrimEnd('/')}/{imagePath.TrimStart('/')}";
+        return $"{urlFinal}?v={DateTime.Now.Ticks}";
     }
 }

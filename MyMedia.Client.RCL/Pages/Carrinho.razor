@@ -27,70 +27,73 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-0">
-                        <table class="table table-hover mb-0 align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Produto</th>
-                                    <th>Preço Un.</th>
-                                    <th style="width: 140px;">Quantidade</th>
-                                    <th>Total</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var item in itens)
-                                {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 align-middle">
+                                <thead class="table-light">
                                     <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                @if (!string.IsNullOrEmpty(item.Produto.ImagemUrl))
-                                                {
-                                                    <img src="@item.Produto.ImagemUrl" width="50" class="rounded me-2">
-                                                }
-                                                <div>
-                                                    <span class="fw-bold d-block">@item.Produto.Titulo</span>
-                                                    <small class="text-muted" style="font-size: 0.75rem;">
-                                                        Stock: @item.Produto.Stock un.
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>@item.Produto.PrecoFinal.ToString("C")</td>
-                                        <td>
-                                            <div class="input-group input-group-sm">
-                                                <input type="number"
-                                                       class="form-control text-center"
-                                                       min="1"
-                                                       max="@item.Produto.Stock"
-                                                       value="@item.Quantidade"
-                                                       @onchange="@(e => AtualizarQtd(item, e.Value))" />
-                                            </div>
-                                            @if (item.Quantidade >= item.Produto.Stock)
-                                            {
-                                                <small class="text-danger fw-bold" style="font-size: 0.7rem;">
-                                                    Máx. atingido!
-                                                </small>
-                                            }
-                                        </td>
-                                        <td class="fw-bold text-success">
-                                            @((item.Produto.PrecoFinal * item.Quantidade).ToString("C"))
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Remover(item)">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </td>
+                                        <th>Produto</th>
+                                        <th>Preço Un.</th>
+                                        <th style="width: 140px;">Quantidade</th>
+                                        <th>Total</th>
+                                        <th></th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in itens)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    @if (!string.IsNullOrEmpty(item.Produto.ImagemUrl))
+                                                    {
+                                                        @* 👇 AQUI ESTÁ A CORREÇÃO DA IMAGEM *@
+                                                        <img src="@GetFullImageUrl(item.Produto.ImagemUrl)" width="50" class="rounded me-2" style="object-fit: cover; height: 50px;">
+                                                    }
+                                                    <div>
+                                                        <span class="fw-bold d-block text-truncate" style="max-width: 150px;">@item.Produto.Titulo</span>
+                                                        <small class="text-muted" style="font-size: 0.75rem;">
+                                                            Stock: @item.Produto.Stock un.
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>@item.Produto.PrecoFinal.ToString("C")</td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number"
+                                                           class="form-control text-center"
+                                                           min="1"
+                                                           max="@item.Produto.Stock"
+                                                           value="@item.Quantidade"
+                                                           @onchange="@(e => AtualizarQtd(item, e.Value))" />
+                                                </div>
+                                                @if (item.Quantidade >= item.Produto.Stock)
+                                                {
+                                                    <small class="text-danger fw-bold" style="font-size: 0.7rem;">
+                                                        Máx. atingido!
+                                                    </small>
+                                                }
+                                            </td>
+                                            <td class="fw-bold text-success">
+                                                @((item.Produto.PrecoFinal * item.Quantidade).ToString("C"))
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Remover(item)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            @* --- COLUNA DA DIREITA: RESUMO E BOTÃO MÁGICO --- *@
-            <div class="col-md-4">
-                <div class="card shadow border-primary">
+            @* --- COLUNA DA DIREITA: RESUMO E CHECKOUT --- *@
+            <div class="col-md-4 mt-4 mt-md-0">
+                <div class="card shadow border-primary sticky-top" style="top: 80px; z-index: 1;">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Resumo</h5>
                     </div>
@@ -105,16 +108,13 @@
                             <strong class="fs-4 text-primary">@CarrinhoSvc.Total().ToString("C")</strong>
                         </div>
 
-                        @* AQUI ESTÁ A LÓGICA DO BOTÃO *@
                         <AuthorizeView>
                             <Authorized>
-                                @* MUDANÇA: AGORA VAI PARA O CHECKOUT, NÃO COMPRA LOGO *@
                                 <button class="btn btn-success w-100 btn-lg" @onclick="IrParaCheckout">
                                     <span>Ir para Pagamento <i class="bi bi-arrow-right"></i></span>
                                 </button>
                             </Authorized>
                             <NotAuthorized>
-                                @* SE FOR ANÓNIMO: Manda logar *@
                                 <button class="btn btn-warning w-100 btn-lg" @onclick="IrParaLogin">
                                     🔒 Login para Comprar
                                 </button>
@@ -163,10 +163,17 @@
         Navigation.NavigateTo("/login");
     }
 
-    // --- MUDANÇA PRINCIPAL AQUI ---
-    // Em vez de chamar a API, simplesmente mudamos de página
     private void IrParaCheckout()
     {
         Navigation.NavigateTo("/checkout");
+    }
+
+    // 👇 FUNÇÃO MÁGICA PARA AS IMAGENS (Mobile + Web)
+    private string GetFullImageUrl(string imagePath)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return "";
+        var baseUrl = Http.BaseAddress?.ToString() ?? "";
+        var urlFinal = $"{baseUrl.TrimEnd('/')}/{imagePath.TrimStart('/')}";
+        return $"{urlFinal}?v={DateTime.Now.Ticks}";
     }
 }

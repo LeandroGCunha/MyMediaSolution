@@ -93,7 +93,7 @@ app.MapPost("/account/login", async (HttpContext context, [FromForm] string emai
     // A. Pergunta à API se o user existe (Validação de password)
     var client = clientFactory.CreateClient("API");
     // Nota: A API deve ter um endpoint que aceita JSON para login
-    var response = await client.PostAsJsonAsync("api/auth/login", new { UserName = email, Password = password });
+var response = await client.PostAsJsonAsync("api/auth/login", new { UserName = email, Password = password });
     if (!response.IsSuccessStatusCode)
     {
         // Se a API rejeitar, volta para o login com erro

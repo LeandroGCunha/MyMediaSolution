@@ -24,53 +24,57 @@
 
             <div class="mb-3">
                 <label>Descrição Detalhada:</label>
-                <InputTextArea class="form-control" @bind-Value="produto.Descricao" />
+                <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" />
             </div>
 
-            <div class="mb-3 border p-3 rounded">
+            <div class="mb-3 border p-3 rounded bg-light">
                 <label class="form-label fw-bold">Imagem do Produto:</label>
                 <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
 
                 @if (!string.IsNullOrEmpty(imagemPreview))
                 {
                     <div class="mt-2">
-                        <p>Pré-visualização:</p>
+                        <p class="small text-success">Pré-visualização:</p>
                         <img src="@imagemPreview" width="150" class="img-thumbnail" />
                     </div>
+                }
+                else
+                {
+                    <div class="mt-2 text-muted small">Nenhuma imagem selecionada.</div>
                 }
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label>Stock Inicial:</label>
-                    <InputNumber class="form-control" @bind-Value="produto.Stock" />
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label>Categoria:</label>
-                <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
-                    <option value="">-- Selecione uma Categoria --</option>
-                    @if (listaCategorias != null)
-                    {
-                        foreach (var cat in listaCategorias)
+                    <label>Categoria:</label>
+                    <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
+                        <option value="">-- Selecione uma Categoria --</option>
+                        @if (listaCategorias != null)
                         {
-                            <option value="@cat.Id">@cat.Nome</option>
+                            foreach (var cat in listaCategorias)
+                            {
+                                <option value="@cat.Id">@cat.Nome</option>
+                            }
                         }
-                    }
-                </InputSelect>
+                    </InputSelect>
+                </div>
             </div>
 
             <div class="row bg-light p-3 border rounded mb-3">
-                <div class="col-md-4">
+                <div class="col-md-4 mb-3">
                     <label>Preço Base (€):</label>
                     <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 mb-3">
                     <label>Margem (Ex: 0.5 = 50%):</label>
                     <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
                 </div>
-                <div class="col-md-4 pt-4">
+                <div class="col-md-4 mb-3">
+                    <label>Stock Inicial:</label>
+                    <InputNumber class="form-control" @bind-Value="produto.Stock" />
+                </div>
+
+                <div class="col-12 mt-2">
                     <p>
                         Estimativa Final:
                         <strong class="text-success" style="font-size: 1.2em;">
@@ -78,10 +82,19 @@
                         </strong>
                     </p>
                 </div>
+
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" id="flexSwitchCheckChecked" />
+                        <label class="form-check-label fw-bold" for="flexSwitchCheckChecked">
+                            Produto Ativo e Visível
+                        </label>
+                    </div>
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-success">Guardar Produto</button>
-            <a href="/produtos" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">Criar Produto</button>
+            <a href="/produtos" class="btn btn-secondary ms-2">Cancelar</a>
         </EditForm>
     </div>
 </div>
@@ -96,7 +109,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        listaCategorias = await Context.Categorias.ToListAsync();
+        listaCategorias = await Context.Categorias.AsNoTracking().ToListAsync();
         produto.IsAtivo = true;
         produto.MargemLucro = 0.5m; // Valor inicial sugerido
     }
@@ -129,36 +142,46 @@
         // FASE 1: Preparar dados básicos
         produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
 
+        // ⚠️ CORREÇÃO CRUCIAL 1: Forçar ID a 0 para evitar erro "Identity Insert"
+        produto.Id = 0;
+
         // FASE 2: Gravar na BD PRIMEIRO (Para gerar o ID)
-        // Nota: Ainda não guardamos a imagem, por isso o ImagemUrl vai null ou vazio
         Context.Produtos.Add(produto);
         await Context.SaveChangesAsync();
 
         // AGORA JÁ TEMOS UM ID! (ex: produto.Id agora é 15)
 
-        // FASE 3: Se houver imagem, gravamos com o nome correto (15.jpg)
+        // FASE 3: Se houver imagem, gravamos na API
         if (ficheiroSelecionado != null)
         {
-            var extensao = Path.GetExtension(ficheiroSelecionado.Name);
+            try
+            {
+                // ⚠️ CORREÇÃO CRUCIAL 2: Gravar na pasta da API
+                var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
+                var pastaImagensApi = Path.Combine(pastaApi, "imagens");
 
-            // Usamos o ID que acabámos de gerar
-            var nomeFicheiro = $"{produto.Id}{extensao}";
+                if (!Directory.Exists(pastaImagensApi)) Directory.CreateDirectory(pastaImagensApi);
 
-            var pastaImagens = Path.Combine(Environment.WebRootPath, "imagens");
-            if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
+                var extensao = Path.GetExtension(ficheiroSelecionado.Name);
+                var nomeFicheiro = $"{produto.Id}{extensao}";
+                var caminhoCompleto = Path.Combine(pastaImagensApi, nomeFicheiro);
 
-            var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
+                // Gravar no disco
+                await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
+                await ficheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
 
-            // Gravar no disco
-            await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
-            await ficheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
+                // Atualizar o produto com o caminho da imagem e timestamp
+                produto.ImagemUrl = $"imagens/{nomeFicheiro}?v={DateTime.Now.Ticks}";
 
-            // Atualizar o produto com o caminho da imagem
-            produto.ImagemUrl = "/imagens/" + nomeFicheiro;
-
-            // FASE 4: Gravar a alteração da imagem na BD
-            Context.Produtos.Update(produto);
-            await Context.SaveChangesAsync();
+                // FASE 4: Gravar a alteração da imagem na BD
+                Context.Produtos.Update(produto);
+                await Context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Erro ao gravar imagem: " + ex.Message);
+                // Não paramos o processo se a imagem falhar, o produto já foi criado.
+            }
         }
 
         Navigation.NavigateTo("/produtos");
