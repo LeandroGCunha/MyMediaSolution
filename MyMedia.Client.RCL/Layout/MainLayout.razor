@@ -9,7 +9,6 @@
 
 @namespace MyMedia.Client.RCL.Layout
 
-
 <div class="page d-flex flex-column min-vh-100">
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow sticky-top">
@@ -61,16 +60,52 @@
                                         <i class="bi bi-person-fill"></i>
                                     </div>
                                     @context.User.Identity?.Name
+                                    @* 👇 Pequena etiqueta visual para saberes o que és *@
+                                    @if (context.User.IsInRole("Fornecedor"))
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1" style="font-size: 0.6em;">PRO</span>
+                                    }
                                 </a>
 
                                 <ul class="dropdown-menu dropdown-menu-end shadow @(mostrarMenuUsuario ? "show" : "")">
+
+                                    @* 1. PERFIL (COMUM A TODOS) *@
                                     <li><a class="dropdown-item" href="perfil" @onclick="FecharMenu"><i class="bi bi-person-gear me-2"></i>Minha Conta</a></li>
-                                    <li><a class="dropdown-item" href="minhas-encomendas" @onclick="FecharMenu"><i class="bi bi-box-seam me-2"></i>Encomendas</a></li>
+
+                                    @* 2. MENU ESPECÍFICO *@
+                                    @if (context.User.IsInRole("Fornecedor"))
+                                    {
+                                        // --- MENU DO FORNECEDOR ---
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header">Área do Fornecedor</h6></li>
+                                        <li>
+                                            <a class="dropdown-item" href="meus-produtos" @onclick="FecharMenu">
+                                                <i class="bi bi-box-seam-fill me-2 text-primary"></i> Gerir Produtos
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="painel-vendas" @onclick="FecharMenu">
+                                                <i class="bi bi-graph-up-arrow me-2 text-success"></i> Relatório de Vendas
+                                            </a>
+                                        </li>
+                                    }
+                                    else
+                                    {
+                                        // --- MENU DO CLIENTE ---
+                                        <li>
+                                            <a class="dropdown-item" href="minhas-encomendas" @onclick="FecharMenu">
+                                                <i class="bi bi-bag-check me-2"></i> Minhas Compras
+                                            </a>
+                                        </li>
+                                    }
+
                                     <li><hr class="dropdown-divider"></li>
+
+                                    @* 3. SAIR (COMUM A TODOS) *@
                                     <li>
-                                        <button class="dropdown-item text-danger d-flex align-items-center" @onclick="Logout">
+                                        <a href="/account/logout" class="dropdown-item text-danger d-flex align-items-center">
                                             <i class="bi bi-box-arrow-right me-2"></i> Sair
-                                        </button>
+                                        </a>
                                     </li>
                                 </ul>
 
@@ -131,30 +166,5 @@
     public void Dispose()
     {
         CarrinhoSvc.OnChange -= StateHasChanged;
-    }
-
-    // LÓGICA DE LOGOUT
-    private async Task Logout()
-    {
-        try
-        {
-            FecharMenu(); // Fecha o menu antes de sair
-
-            // 1. Avisa a API
-            await Http.PostAsync("api/auth/logout", null);
-
-            // 2. Atualiza o estado local
-            if (AuthStateProvider is CustomAuthStateProvider customProvider)
-            {
-                customProvider.NotifyLogin();
-            }
-
-            // 3. Redireciona
-            Nav.NavigateTo("/", forceLoad: true);
-        }
-        catch
-        {
-            Nav.NavigateTo("/", forceLoad: true);
-        }
     }
 }

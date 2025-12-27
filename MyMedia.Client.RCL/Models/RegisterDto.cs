@@ -27,5 +27,7 @@ namespace MyMedia.Client.RCL.Models
         [StringLength(9, MinimumLength = 9, ErrorMessage = "O NIF deve ter 9 dígitos")]
         public string NIF { get; set; } = string.Empty;
 
+        public string Role { get; set; } = "Cliente"; // Por defeito é Cliente
+
     }
 }

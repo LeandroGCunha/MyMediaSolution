@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MyMedia.Data.Entities;
 using System.ComponentModel.DataAnnotations; // Necessário para validar emails e passwords
+using MyMedia.Client.RCL.Models;
 
 namespace MyMedia.Server.Controllers
 {
@@ -26,8 +27,8 @@ namespace MyMedia.Server.Controllers
             {
                 UserName = request.Email,
                 Email = request.Email,
-                NomeCompleto = request.NomeCompleto, // Grava o nome que veio do form
-                NIF = request.NIF                    // Grava o NIF que veio do form
+                NomeCompleto = request.NomeCompleto, 
+                NIF = request.NIF,
             };
 
             // 2. Gravar na BD (com password segura)
@@ -35,7 +36,16 @@ namespace MyMedia.Server.Controllers
 
             if (result.Succeeded)
             {
-                return Ok(new { Message = "Registo efetuado com sucesso!" });
+                if (request.Role == "Cliente" || request.Role == "Fornecedor")
+                {
+                    await _userManager.AddToRoleAsync(user, request.Role);
+                }
+                else
+                {
+                    await _userManager.AddToRoleAsync(user, "Cliente");
+                }
+
+                return Ok(new { message = "Registo efetuado com sucesso!" });
             }
 
             // 3. Devolver erro se falhar
@@ -46,17 +56,20 @@ namespace MyMedia.Server.Controllers
         public async Task<IActionResult> Login([FromBody] LoginDto loginRequest)
         {
             var user = await _userManager.FindByNameAsync(loginRequest.UserName);
-            if (user == null) return BadRequest("Utilizador não encontrado.");
+            if (user == null) return BadRequest("User não encontrado.");
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, false);
-
             if (!result.Succeeded) return BadRequest("Password errada.");
 
-            await _signInManager.SignInAsync(user, isPersistent: true);
-
-            return Ok(new { Message = "Login com sucesso!" });
+            // 👇 IMPORTANTE: Buscar as roles para enviar no JSON
+            var roles = await _userManager.GetRolesAsync(user);
+            
+            return Ok(new
+            {
+                Message = "Login com sucesso!",
+                Roles = roles // <--- A Web App precisa disto!
+            });
         }
-
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -77,37 +90,5 @@ namespace MyMedia.Server.Controllers
             }
             return Unauthorized();
         }
-    }
-
-    // ==========================================
-    // CLASSES LOCAIS (DTOs) - ESTÃO AQUI AGORA
-    // ==========================================
-
-    public class LoginDto
-    {
-        public string UserName { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
-
-    public class RegisterDto
-    {
-        [Required(ErrorMessage = "O email é obrigatório")]
-        [EmailAddress(ErrorMessage = "Email inválido")]
-        public string Email { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "A password é obrigatória")]
-        [MinLength(6, ErrorMessage = "A password deve ter pelo menos 6 caracteres")]
-        public string Password { get; set; } = string.Empty;
-
-        [Compare("Password", ErrorMessage = "As passwords não coincidem")]
-        public string ConfirmPassword { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "O Nome é obrigatório")]
-        public string NomeCompleto { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "O NIF é obrigatório")]
-        [StringLength(9, MinimumLength = 9, ErrorMessage = "O NIF deve ter 9 dígitos")]
-        public string NIF { get; set; } = string.Empty;
-
     }
 }

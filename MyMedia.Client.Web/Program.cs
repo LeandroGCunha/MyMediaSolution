@@ -1,12 +1,14 @@
 using MyMedia.Client.Web.Components;
 using MyMedia.Client.RCL.Services;
+using MyMedia.Client.RCL.Models; // <--- GARANTE QUE TENS ISTO PARA O DTO
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication; // Necessário para SignInAsync
-using Microsoft.AspNetCore.Mvc; // Necessário para [FromForm]
-using System.Security.Claims; // Necessário para Claims
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.IO;
+using System.Text.Json; // <--- NECESSÁRIO PARA LER A RESPOSTA DA API
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,33 +28,35 @@ builder.Services.AddHttpClient("API", client =>
 })
 .AddHttpMessageHandler<CookieHandler>();
 
-// Serviços de suporte
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("API"));
 builder.Services.AddHttpClient<ClientProdutoService>(client => { client.BaseAddress = new Uri("https://localhost:7198/"); });
 builder.Services.AddScoped<CarrinhoService>();
 
 // ===========================================================================
-// 2. CONFIGURAÇÃO DE AUTH (O SEGURANÇA) ?????
+// 2. CONFIGURAÇÃO DE AUTH
 // ===========================================================================
-// Usamos o esquema padrão "Cookies" para simplificar
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "MyMediaAuth"; // Damos um nome fixo ao cookie
+        options.Cookie.Name = "MyMediaAuth";
         options.LoginPath = "/login";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<CustomAuthStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
-builder.Services.AddScoped<ClientAuthService>();
+
+// ? COMENTEI ISTO! O CustomAuth estava a bloquear o cookie normal
+// builder.Services.AddScoped<CustomAuthStateProvider>();
+// builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
+// builder.Services.AddScoped<ClientAuthService>();
+
+// ? ISTO É O SUFICIENTE PARA LER O COOKIE
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
 
 // ===========================================================================
-// 3. PIPELINE (O Corredor de Entrada)
+// 3. PIPELINE
 // ===========================================================================
 
 if (!app.Environment.IsDevelopment())
@@ -79,58 +83,67 @@ try
 }
 catch { }
 
-app.UseAuthentication(); // 1. Verifica o Cookie
-app.UseAuthorization();  // 2. Verifica Permissões
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 // ===========================================================================
-// 4. A ALTERNATIVA AO CONTROLLER (MINIMAL API) ??
-// Aqui definimos a rota que recebe o formulário de Login e cria o Cookie
+// 4. O LOGIN CORRIGIDO ?
 // ===========================================================================
 
 app.MapPost("/account/login", async (HttpContext context, [FromForm] string email, [FromForm] string password, IHttpClientFactory clientFactory) =>
 {
-    // A. Pergunta à API se o user existe (Validação de password)
     var client = clientFactory.CreateClient("API");
-    // Nota: A API deve ter um endpoint que aceita JSON para login
-var response = await client.PostAsJsonAsync("api/auth/login", new { UserName = email, Password = password });
+
+    // 1. Enviar pedido à API
+    var response = await client.PostAsJsonAsync("api/auth/login", new { UserName = email, Password = password });
+
     if (!response.IsSuccessStatusCode)
     {
-        // Se a API rejeitar, volta para o login com erro
         return Results.Redirect("/login?error=credenciais_invalidas");
     }
 
-    // B. Se a API disse SIM, criamos o Crachá (Identidade)
+    // 2. ?? LER A RESPOSTA (JSON) PARA SABER AS ROLES
+    var jsonString = await response.Content.ReadAsStringAsync();
+    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+    // Usa o DTO que criámos (LoginResponseDto)
+    var loginResult = JsonSerializer.Deserialize<LoginResponseDto>(jsonString, options);
+
     var claims = new List<Claim>
     {
-        new Claim(ClaimTypes.Name, email),
-        new Claim(ClaimTypes.Role, "Cliente") 
-        // Podes adicionar o Token JWT aqui se a API o devolver
+        new Claim(ClaimTypes.Name, email)
+        // ? REMOVI A LINHA QUE FORÇAVA "CLIENTE"
     };
 
+    // 3. ?? ADICIONAR AS ROLES REAIS (FORNECEDOR OU CLIENTE)
+    if (loginResult?.Roles != null)
+    {
+        foreach (var role in loginResult.Roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+    }
+
+    // 4. Criar o Cookie
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
     var principal = new ClaimsPrincipal(identity);
 
-    // C. O PASSO MÁGICO: Colar o Cookie no Browser ??
     await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties
     {
         IsPersistent = true,
-        ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
+        ExpiresUtc = DateTime.UtcNow.AddDays(30)
     });
 
-    // D. Redirecionar para a Home
     return Results.Redirect("/");
 })
-.DisableAntiforgery(); // Desliga a verificação de token para facilitar o login inicial
+.DisableAntiforgery();
 
-// Rota de Logout
 app.MapGet("/account/logout", async (HttpContext context) =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 });
-
-// ===========================================================================
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

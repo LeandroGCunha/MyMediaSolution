@@ -110,11 +110,24 @@
 
                         <AuthorizeView>
                             <Authorized>
-                                <button class="btn btn-success w-100 btn-lg" @onclick="IrParaCheckout">
-                                    <span>Ir para Pagamento <i class="bi bi-arrow-right"></i></span>
-                                </button>
+                                @* Se estiver logado, verificamos se é Cliente *@
+                                @if (context.User.IsInRole("Cliente"))
+                                {
+                                    <button class="btn btn-success w-100 btn-lg" @onclick="IrParaCheckout">
+                                        <span>Ir para Pagamento <i class="bi bi-arrow-right"></i></span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    @* Se for Fornecedor, Admin, etc., mostramos aviso *@
+                                    <div class="alert alert-warning text-center mb-0">
+                                        <i class="bi bi-exclamation-triangle-fill"></i><br />
+                                        Apenas contas de <strong>Cliente</strong> podem efetuar compras.
+                                    </div>
+                                }
                             </Authorized>
                             <NotAuthorized>
+                                @* Se não estiver logado *@
                                 <button class="btn btn-warning w-100 btn-lg" @onclick="IrParaLogin">
                                     🔒 Login para Comprar
                                 </button>
