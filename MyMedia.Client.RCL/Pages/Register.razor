@@ -23,14 +23,12 @@
                             <ValidationMessage For="@(() => RegisterModel.Email)" />
                         </div>
 
-                        @* --- NOVO CAMPO: NOME --- *@
                         <div class="mb-3">
                             <label class="form-label">Nome Completo</label>
                             <InputText @bind-Value="RegisterModel.NomeCompleto" class="form-control" placeholder="O teu nome" />
                             <ValidationMessage For="@(() => RegisterModel.NomeCompleto)" />
                         </div>
 
-                        @* --- NOVO CAMPO: NIF --- *@
                         <div class="mb-3">
                             <label class="form-label">NIF</label>
                             <InputText @bind-Value="RegisterModel.NIF" class="form-control" placeholder="123456789" />
@@ -48,6 +46,15 @@
                             <label class="form-label">Confirmar Palavra-Passe</label>
                             <InputText @bind-Value="RegisterModel.ConfirmPassword" type="password" class="form-control" placeholder="******" />
                             <ValidationMessage For="@(() => RegisterModel.ConfirmPassword)" />
+                        </div>
+
+                        @* 👇 AQUI ESTÁ O SWITCH (INTERRUPTOR) *@
+                        <div class="mb-4 form-check form-switch p-3 border rounded bg-light">
+                            <input class="form-check-input" type="checkbox" id="roleSwitch"
+                                   @bind="eFornecedor" style="margin-left: 0.5em;">
+                            <label class="form-check-label ms-2 fw-bold" for="roleSwitch">
+                                @(eFornecedor ? "Sou um Fornecedor 🚚" : "Sou um Cliente 🛒")
+                            </label>
                         </div>
 
                         <button type="submit" class="btn btn-success w-100">
@@ -72,48 +79,48 @@
 </div>
 
 @code {
-    // Inicializamos o modelo
     public RegisterDto RegisterModel { get; set; } = new RegisterDto();
-
     private string mensagemErro = "";
+
+    // Variável auxiliar para controlar o switch
+    private bool eFornecedor = false;
 
     private async Task HandleRegistration()
     {
-        mensagemErro = ""; // Limpa erros anteriores
+        mensagemErro = "";
+
+        // 👇 DEFINIR A ROLE ANTES DE ENVIAR
+        RegisterModel.Role = eFornecedor ? "Fornecedor" : "Cliente";
 
         try
         {
-            // 1. Enviar dados para a API
             var response = await Http.PostAsJsonAsync("api/auth/register", RegisterModel);
 
             if (response.IsSuccessStatusCode)
             {
-                // 2. Se correu bem, mandamos o utilizador para o Login
                 Nav.NavigateTo("/login");
             }
             else
             {
-                // 3. Se falhou, tentamos ler o erro que a API mandou
                 var erroDetalhado = await response.Content.ReadAsStringAsync();
 
-                // Se o erro for muito feio (JSON complexo), mostramos um genérico
                 if (erroDetalhado.Contains("DuplicateUserName"))
                 {
                     mensagemErro = "Este email já está registado.";
                 }
                 else if (erroDetalhado.Contains("Password"))
                 {
-                    mensagemErro = "A password não cumpre os requisitos (Maiúscula, Número, Símbolo).";
+                    mensagemErro = "Password fraca (Use Maiúsculas, Números e Símbolos).";
                 }
                 else
                 {
-                    mensagemErro = "Erro ao registar. Verifique os dados.";
+                    mensagemErro = "Erro ao registar: " + erroDetalhado;
                 }
             }
         }
         catch (Exception)
         {
-            mensagemErro = "Erro ao ligar ao servidor.";
+            mensagemErro = "Erro ao ligar ao servidor API.";
         }
     }
 }
