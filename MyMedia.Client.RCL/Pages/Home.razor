@@ -121,18 +121,29 @@ else
     {
         try
         {
-            produtos = await ProdutoService.GetProdutosAsync();
+            // 1. Carregamos TODOS os produtos da API para uma variável temporária
+            var todosOsProdutos = await ProdutoService.GetProdutosAsync();
 
-            if (produtos != null)
+            if (todosOsProdutos != null)
             {
+                // 2. FILTRAGEM CRUCIAL:
+                // Só passam para a variável global 'produtos' aqueles que estiverem ATIVOS.
+                // Assim, o resto da página nunca vê produtos inativos.
+                produtos = todosOsProdutos
+                            .Where(p => p.IsAtivo == true)
+                            .ToList();
+
+                // 3. Criamos o destaque a partir da lista já filtrada
                 produtosDestaque = produtos
-                    .Where(p => p.IsAtivo)
-                    .OrderBy(p => Guid.NewGuid())
+                    .OrderBy(p => Guid.NewGuid()) // Aleatório
                     .Take(5)
                     .ToList();
             }
         }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
     }
 
     // 👇 A FUNÇÃO QUE RESOLVE O PROBLEMA DAS IMAGENS

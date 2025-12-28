@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
+using System.Security.Claims;
 
 namespace MyMedia.API.Controllers
 {
@@ -61,7 +62,6 @@ namespace MyMedia.API.Controllers
         }
 
         [HttpPost]
-        [HttpPost]
         public async Task<ActionResult<Produto>> PostProduto(Produto produto)
         {
             // 1. SEPARAR A IMAGEM (TRUQUE)
@@ -119,6 +119,97 @@ namespace MyMedia.API.Controllers
             }
 
             return CreatedAtAction("GetProduto", new { id = produto.Id }, produto);
+        }
+
+       
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutProduto(int id, Produto produto)
+        {
+            if (id != produto.Id)
+            {
+                return BadRequest("O ID do produto não coincide.");
+            }
+
+            // 1. Identificar quem está a fazer o pedido (Fornecedor ou Admin?)
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            // 2. APLICAR REGRA DE NEGÓCIO
+            if (userRole == "Fornecedor")
+            {
+                // Se for Fornecedor, forçamos a ficar Pendente/Inativo.
+                // Isto impede que o fornecedor ative o produto sozinho.
+                produto.IsAtivo = false;
+
+                // Opcional: Impedir que o fornecedor mude a margem
+                // (Idealmente devíamos ir buscar o original à BD para garantir isto, 
+                // mas para o botão "Suspender" funcionar, isto chega).
+            }
+
+            // Se for Admin/Funcionário, aceitamos o "IsAtivo" que vier do Frontend.
+
+            _context.Entry(produto).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Produtos.Any(e => e.Id == id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        // DELETE: api/produtos/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProduto(int id)
+        {
+            // 1. Procurar o produto
+            var produto = await _context.Produtos.FindAsync(id);
+            if (produto == null)
+            {
+                return NotFound();
+            }
+
+            // 2. SEGURANÇA: Verificar se o Fornecedor é o dono do produto
+            // Se for um "Fornecedor", só pode apagar se o produto for dele.
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (userRole == "Fornecedor" && produto.FornecedorId != userId)
+            {
+                return Forbid(); // 403 - Proibido (Não é teu!)
+            }
+
+            // 3. Tentar Apagar
+            try
+            {
+                // Apagar a imagem do disco (Opcional, mas boa prática para não deixar lixo)
+                if (!string.IsNullOrEmpty(produto.ImagemUrl))
+                {
+                    var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", produto.ImagemUrl);
+                    if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+                }
+
+                _context.Produtos.Remove(produto);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                // 4. ERRO DE CHAVE ESTRANGEIRA
+                // Se o produto já estiver numa Encomenda, a BD lança erro. Nós apanhamos e avisamos.
+                return BadRequest("Não é possível apagar este produto porque ele já tem vendas ou registos associados.");
+            }
+
+            return NoContent(); // 204 - Sucesso (sem conteúdo)
         }
     }
 }

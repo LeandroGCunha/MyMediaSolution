@@ -5,12 +5,14 @@
 @using System.Net.Http.Json
 @using Microsoft.AspNetCore.Components.Authorization
 @using MyMedia.Data.Entities
+@using Microsoft.JSInterop 
 
 @attribute [Authorize(Roles = "Fornecedor")]
 
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -120,12 +122,14 @@
                     </button>
                     @if (p.IsAtivo)
                     {
-                         <button class="btn btn-sm btn-outline-secondary ms-1" title="Suspender">
+                         <button class="btn btn-sm btn-outline-secondary ms-1" title="Suspender"
+                            @onclick="() => SuspenderProduto(p)">
                             <i class="bi bi-pause-circle"></i>
                         </button>
                     }
-                    <button class="btn btn-sm btn-outline-danger ms-1" title="Eliminar">
-        <i class="bi bi-trash"></i>
+                    <button class="btn btn-sm btn-outline-danger ms-1" title="Eliminar"
+                    @onclick="() => ApagarProduto(p)">
+                        <i class="bi bi-trash"></i>
     </button>
                 </td>
             </tr>
@@ -136,6 +140,9 @@
 </div>
 
 @code {
+
+
+
     private List<Produto>? meusProdutos;
     private string userId = "";
 
@@ -200,5 +207,78 @@
 
         // Adiciona o timestamp para evitar cache velha
         return $"{urlFinal}?v={DateTime.Now.Ticks}";
+    }
+
+
+    private async Task SuspenderProduto(Produto produto)
+    {
+        // 1. Confirmação visual para evitar cliques acidentais
+        bool confirmado = await JSRuntime.InvokeAsync<bool>("confirm", 
+            $"Queres retirar o '{produto.Titulo}' de venda? Ele ficará invisível na loja.");
+
+        if (confirmado)
+        {
+            try
+            {
+                // 2. Guardamos o estado antigo caso dê erro na API (backup)
+                bool estadoAntigo = produto.IsAtivo;
+
+                // 3. Alteramos localmente para 'false' (Suspenso)
+                produto.IsAtivo = false;
+
+                // 4. Enviamos a atualização para a API
+                // ⚠️ Importante: A API 'PutProduto' tem de estar pronta (ver passo 3 abaixo)
+                var resposta = await Http.PutAsJsonAsync($"api/produtos/{produto.Id}", produto);
+
+                if (!resposta.IsSuccessStatusCode)
+                {
+                    // Se a API falhar, revertemos a mudança visual
+                    produto.IsAtivo = estadoAntigo;
+                
+                    var erro = await resposta.Content.ReadAsStringAsync();
+                    mensagemErro = $"Erro ao suspender: {erro}";
+                }
+                // Se correu bem, não precisamos de fazer nada, 
+                // porque o objeto 'produto' já está com IsAtivo = false e a tabela atualiza-se sozinha.
+            }
+            catch (Exception ex)
+            {
+                mensagemErro = "Erro de ligação ao tentar suspender.";
+            }
+        }
+    }
+    private async Task ApagarProduto(Produto produtoParaApagar)
+    {
+        // 1. Popup de Confirmação (Sim/Não)
+        bool confirmado = await JSRuntime.InvokeAsync<bool>("confirm", 
+            $"⚠️ Atenção!\n\nTem a certeza que deseja apagar permanentemente o produto '{produtoParaApagar.Titulo}'?");
+    
+        if (confirmado)
+        {
+            try
+            {
+                // 2. Enviar pedido à API
+                var resposta = await Http.DeleteAsync($"api/produtos/{produtoParaApagar.Id}");
+
+                if (resposta.IsSuccessStatusCode)
+                {
+                    // 3. SUCESSO: Removemos da lista visualmente
+                    // Assim a linha desaparece da tabela sem ser preciso fazer F5
+                    meusProdutos?.Remove(produtoParaApagar);
+                    // Opcional: StateHasChanged(); se o Blazor não atualizar logo
+                }
+                else
+                {
+                    // 4. ERRO (Ex: Já foi vendido)
+                    var msgErro = await resposta.Content.ReadAsStringAsync();
+                    await JSRuntime.InvokeVoidAsync("alert", $"❌ Erro ao apagar: {msgErro}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+                await JSRuntime.InvokeVoidAsync("alert", "Erro de ligação ao servidor.");
+            }
+        }
     }
 }
