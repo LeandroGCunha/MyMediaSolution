@@ -112,8 +112,8 @@ app.MapPost("/account/login", async (HttpContext context, [FromForm] string emai
 
     var claims = new List<Claim>
     {
-        new Claim(ClaimTypes.Name, email)
-        // ? REMOVI A LINHA QUE FORÇAVA "CLIENTE"
+        new Claim(ClaimTypes.Name, email),
+        new Claim(ClaimTypes.NameIdentifier, loginResult.UserId ?? "")
     };
 
     // 3. ?? ADICIONAR AS ROLES REAIS (FORNECEDOR OU CLIENTE)

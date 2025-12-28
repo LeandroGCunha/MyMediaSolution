@@ -1,0 +1,208 @@
+﻿@page "/criar-produto"
+@attribute [Authorize(Roles = "Fornecedor")]
+
+@using System.Security.Claims
+@using System.IO
+@using MyMedia.Data.Entities
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Json
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3>🚀 Adicionar Novo Produto (Para Aprovação)</h3>
+
+<div class="row">
+    <div class="col-md-8">
+        <EditForm Model="produto" OnValidSubmit="GuardarProduto">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            @* 1. TÍTULO *@
+            <div class="mb-3">
+                <label>Título:</label>
+                <InputText class="form-control" @bind-Value="produto.Titulo" placeholder="Ex: iPhone 15 Pro" />
+            </div>
+
+            @* 2. DESCRIÇÃO *@
+            <div class="mb-3">
+                <label>Descrição Detalhada:</label>
+                <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" placeholder="Detalhes do produto..." />
+            </div>
+
+            @* 3. IMAGEM *@
+            <div class="mb-3 border p-3 rounded bg-light">
+                <label class="form-label fw-bold">Imagem do Produto:</label>
+                <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
+
+                @if (!string.IsNullOrEmpty(imagemPreview))
+                {
+                    <div class="mt-2">
+                        <p class="small text-success">Pré-visualização:</p>
+                        <img src="@imagemPreview" width="150" class="img-thumbnail" />
+                    </div>
+                }
+            </div>
+
+            @* 4. CATEGORIA *@
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Categoria:</label>
+                    <InputSelect TValue="int?" class="form-select" @bind-Value="produto.CategoriaId">
+                        <option value="">-- Selecione uma Categoria --</option>
+                        @if (listaCategorias != null)
+                        {
+                            foreach (var cat in listaCategorias)
+                            {
+                                <option value="@cat.Id">@cat.Nome</option>
+                            }
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            @* 5. PREÇO BASE (Só isto! O Admin decide o resto) *@
+            <div class="row bg-light p-3 border rounded mb-3">
+                <div class="col-md-6 mb-3">
+                    <label>O teu Preço Base (€):</label>
+                    <InputNumber TValue="decimal" class="form-control" @bind-Value="produto.PrecoBase" />
+                    <small class="text-muted">Este é o valor que queres receber. O Admin adicionará a margem depois.</small>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label>Stock Inicial:</label>
+                    <InputNumber TValue="int" class="form-control" @bind-Value="produto.Stock" />
+                </div>
+
+                @* REMOVIDO: Checkbox "Ativo" (O Fornecedor não pode ativar ao criar) *@
+                <div class="col-12 mt-2">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle"></i> O produto ficará <strong>Pendente</strong> até ser aprovado por um Administrador.
+                    </div>
+                </div>
+            </div>
+
+            @* 6. BOTÕES *@
+            <button type="submit" class="btn btn-primary" disabled="@estaAEnviar">
+                @if (estaAEnviar)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span> <span>A Enviar...</span>
+                }
+                else
+                {
+                    <span><i class="bi bi-send"></i> Submeter para Aprovação</span>
+                }
+            </button>
+            <a href="/meus-produtos" class="btn btn-secondary ms-2">Cancelar</a>
+            
+            @if (!string.IsNullOrEmpty(mensagemErro))
+            {
+                <div class="alert alert-danger mt-3">@mensagemErro</div>
+            }
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Produto produto = new Produto();
+    private List<Categoria> listaCategorias = new();
+    private string? imagemPreview;
+    private bool estaAEnviar = false;
+    private string mensagemErro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            listaCategorias = await Http.GetFromJsonAsync<List<Categoria>>("api/produtos/categorias") ?? new List<Categoria>();
+        }
+        catch (Exception)
+        {
+            mensagemErro = "Não foi possível carregar as categorias.";
+        }
+    }
+
+    private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        long maxFileSize = 1024 * 1024 * 5; 
+        var format = "image/png";
+
+        try
+        {
+            var resizedImage = await file.RequestImageFileAsync(format, 400, 400);
+            using var stream = resizedImage.OpenReadStream(maxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            imagemPreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
+            produto.ImagemUrl = imagemPreview; 
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro na imagem: {ex.Message}";
+        }
+    }
+
+    private async Task GuardarProduto()
+    {
+        estaAEnviar = true;
+        mensagemErro = "";
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                         ?? user.FindFirst("sub")?.Value;
+
+            if (userId == null)
+            {
+                mensagemErro = "Erro: Sessão inválida.";
+                estaAEnviar = false;
+                return;
+            }
+
+            // 👇 LÓGICA DE NEGÓCIO CORRIGIDA SEGUNDO O ENUNCIADO
+            produto.FornecedorId = userId;
+            produto.Id = 0; 
+
+            // 1. FORÇAR INATIVO (PENDENTE)
+            produto.IsAtivo = false; 
+
+            // 2. FORÇAR MARGEM A ZERO (O Admin define depois)
+            produto.MargemLucro = 0; 
+            
+            // 3. PREÇO FINAL = PREÇO BASE (Temporariamente, até o Admin mexer)
+            produto.PrecoFinal = produto.PrecoBase;
+
+            var response = await Http.PostAsJsonAsync("api/produtos", produto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/meus-produtos");
+            }
+            else
+            {
+                // 👇 Vamos ler o que a API respondeu
+                var erroDetalhes = await response.Content.ReadAsStringAsync();
+                mensagemErro = $"A API rejeitou: {response.StatusCode} | Detalhes: {erroDetalhes}";
+    
+                // Escreve também na consola do browser (F12) para veres melhor
+                Console.WriteLine($"[ERRO API] Status: {response.StatusCode}");
+                Console.WriteLine($"[ERRO API] Body: {erroDetalhes}");
+            }
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = "Erro de ligação: " + ex.Message;
+        }
+        finally
+        {
+            estaAEnviar = false;
+        }
+    }
+}

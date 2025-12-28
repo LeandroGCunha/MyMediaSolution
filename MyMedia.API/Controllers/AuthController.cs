@@ -67,7 +67,8 @@ namespace MyMedia.Server.Controllers
             return Ok(new
             {
                 Message = "Login com sucesso!",
-                Roles = roles // <--- A Web App precisa disto!
+                Roles = roles, // <--- A Web App precisa disto!
+                UserId = user.Id // 👈 ADICIONA ESTA LINHA!
             });
         }
         [HttpPost("logout")]

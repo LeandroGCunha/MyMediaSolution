@@ -1,0 +1,204 @@
+﻿@page "/meus-produtos"
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using MyMedia.Client.RCL.Models
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Authorization
+@using MyMedia.Data.Entities
+
+@attribute [Authorize(Roles = "Fornecedor")]
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>📦 O Meu Catálogo</h3>
+        <button class="btn btn-success" @onclick="IrParaCriar">
+            <i class="bi bi-plus-circle"></i> Novo Produto
+        </button>
+    </div>
+
+    @* 1. SE HOUVER ERRO, MOSTRA AQUI *@
+    @if (!string.IsNullOrEmpty(mensagemErro))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @mensagemErro
+        </div>
+    }
+
+    @* 2. SE ESTIVER A CARREGAR (null) E SEM ERRO *@
+    else if (meusProdutos == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">A carregar produtos...</p>
+        </div>
+    }
+
+    @* 3. SE A LISTA VIER VAZIA *@
+    else if (!meusProdutos.Any())
+    {
+        <div class="alert alert-info text-center">
+            <h4>Ainda não tens produtos! 😢</h4>
+            <p>Começa por adicionar o teu primeiro artigo para venda.</p>
+        </div>
+    }
+
+    @* 4. SE TIVER PRODUTOS, MOSTRA A TABELA *@
+    else
+    {
+        <table class="table table-hover shadow-sm bg-white rounded">
+            <thead class="table-dark">
+                <tr>
+                    <th>Título</th>
+                    <th>Categoria</th>
+                    <th>Preço Final</th>
+                    <th>Stock</th>
+                    <th class="text-center">Imagem</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+@foreach (var p in meusProdutos)
+        {
+            <tr>
+                @* 1. TÍTULO *@
+                <td class="fw-bold">@p.Titulo</td>
+
+                @* 2. CATEGORIA (Usa o ? para não crashar se vier vazio) *@
+                <td>@(p.Categoria?.Nome ?? "Sem Categoria")</td>
+
+                @* 3. PREÇO FINAL *@
+                <td class="text-success fw-bold">@p.PrecoFinal.ToString("C")</td>
+
+                @* 4. STOCK *@
+                <td>
+                    @if(p.Stock <= 0)
+                    {
+                        <span class="text-danger fw-bold">Esgotado</span>
+                    }
+                    else
+                    {
+                        @p.Stock <span>un.</span>
+                    }
+                </td>
+
+                @* 5. IMAGEM *@
+                <td class="text-center">
+                    @if (!string.IsNullOrEmpty(p.ImagemUrl))
+                    {
+                        @* Usa a função auxiliar para corrigir o caminho *@
+                        <img src="@GetFullImageUrl(p.ImagemUrl)" 
+                             class="rounded border" 
+                             style="width: 50px; height: 50px; object-fit: cover;">
+                    }
+                    else
+                    {
+                        <span class="text-muted small">Sem foto</span>
+                    }
+                </td>
+
+                @* 6. ESTADO (Lógica visual) *@
+                <td class="text-center">
+                    @if (p.IsAtivo)
+                    {
+                        <span class="badge bg-success">Ativo</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark">Pendente</span>
+                    }
+                </td>
+
+                @* 7. AÇÕES *@
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    @if (p.IsAtivo)
+                    {
+                         <button class="btn btn-sm btn-outline-secondary ms-1" title="Suspender">
+                            <i class="bi bi-pause-circle"></i>
+                        </button>
+                    }
+                    <button class="btn btn-sm btn-outline-danger ms-1" title="Eliminar">
+        <i class="bi bi-trash"></i>
+    </button>
+                </td>
+            </tr>
+        }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<Produto>? meusProdutos;
+    private string userId = "";
+
+    // 👇 ESTA ERA A VARIÁVEL QUE FALTAVA!
+    private string mensagemErro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                var claimId = user.FindFirst(ClaimTypes.NameIdentifier)
+                              ?? user.FindFirst("sub")
+                              ?? user.FindFirst("id");
+
+                if (claimId != null)
+                {
+                    userId = claimId.Value;
+
+                    // Chama a API
+                    meusProdutos = await Http.GetFromJsonAsync<List<Produto>>($"api/produtos/por-fornecedor/{userId}");
+                }
+                else
+                {
+                    mensagemErro = "Erro: Não conseguimos identificar a tua conta.";
+                    meusProdutos = new List<Produto>(); // Pára o loading
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            // Erro de Ligação (API desligada ou 404)
+            mensagemErro = $"Erro de comunicação com a API (Status: {ex.StatusCode})";
+            meusProdutos = new List<Produto>(); // Pára o loading
+        }
+        catch (Exception ex)
+        {
+            // Outros erros
+            mensagemErro = $"Erro inesperado: {ex.Message}";
+            meusProdutos = new List<Produto>(); // Pára o loading
+        }
+    }
+
+    private void IrParaCriar()
+    {
+        Nav.NavigateTo("/criar-produto");
+    }
+
+    private string GetFullImageUrl(string imagePath)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return "";
+
+        // Pega no endereço base configurado no Program.cs / MauiProgram.cs
+        var baseUrl = Http.BaseAddress?.ToString() ?? "";
+
+        // Remove barras duplicadas para ficar um link limpo
+        var urlFinal = $"{baseUrl.TrimEnd('/')}/{imagePath.TrimStart('/')}";
+
+        // Adiciona o timestamp para evitar cache velha
+        return $"{urlFinal}?v={DateTime.Now.Ticks}";
+    }
+}
