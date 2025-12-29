@@ -4,6 +4,10 @@
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using System.IO
+@using Microsoft.AspNetCore.Identity
+
+
+@inject UserManager<ApplicationUser> UserManager
 @inject ApplicationDbContext Context
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Environment
@@ -11,26 +15,83 @@
 
 <h3>Gestão de Produtos</h3>
 
-<div class="mb-3">
-    <a href="/produtos/criar" class="btn btn-primary">Novo Produto</a>
+<div class="card mb-4">
+    <div class="card-header bg-light fw-bold">Filtros e Pesquisa</div>
+    <div class="card-body">
+        <div class="row g-3">
+            @* 1. FILTRO DE TEXTO *@
+            <div class="col-md-3">
+                <input type="text" class="form-control" placeholder="Pesquisar título..."
+                       @bind="filtroTexto" @bind:event="oninput" @onkeyup="CarregarProdutos" />
+            </div>
+
+            @* 2. FILTRO DE CATEGORIA *@
+            <div class="col-md-2">
+                <select class="form-select" @bind="filtroCategoriaId" @bind:after="CarregarProdutos">
+                    <option value="0">Todas as Categorias</option>
+                    @foreach (var cat in listaCategorias)
+                    {
+                        <option value="@cat.Id">@cat.Nome</option>
+                    }
+                </select>
+            </div>
+
+            @* 3. FILTRO DE ESTADO *@
+            <div class="col-md-2">
+                <select class="form-select" @bind="filtroEstado" @bind:after="CarregarProdutos">
+                    <option value="">Todos os Estados</option>
+                    <option value="Ativo">Ativo</option>
+                    <option value="Pendente">Pendente</option>
+                </select>
+            </div>
+
+            @* 4. FILTRO DE FORNECEDOR *@
+            <div class="col-md-3">
+                <select class="form-select" @bind="filtroFornecedorId" @bind:after="CarregarProdutos">
+                    <option value="">Todos os Fornecedores</option>
+                    <option value="Admin">Apenas Admin (Loja)</option>
+                    @foreach (var f in listaFornecedores)
+                    {
+                        <option value="@f.Id">@f.NomeCompleto</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-2 text-end">
+                <a href="/produtos/criar" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-lg"></i> Novo
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
 @if (listaProdutos == null)
 {
-    <p>A carregar...</p>
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">A carregar...</span>
+    </div>
 }
 else if (!listaProdutos.Any())
 {
-    <p>Não há produtos registados.</p>
+    <div class="alert alert-warning">Não foram encontrados produtos com estes filtros.</div>
 }
 else
 {
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
+    <table class="table table-hover align-middle shadow-sm">
+        <thead class="table-dark">
             <tr>
-                <th>Título</th>
-                <th>Categoria</th>
-                <th>Preço Final</th>
+                @* CABEÇALHOS CLICÁVEIS PARA ORDENAÇÃO *@
+                <th style="cursor: pointer" @onclick='() => Ordenar("Titulo")'>
+                    Título @IconeOrdenacao("Titulo")
+                </th>
+                <th style="cursor: pointer" @onclick='() => Ordenar("Categoria")'>
+                    Categoria @IconeOrdenacao("Categoria")
+                </th>
+                <th>Fornecedor</th> @* A coluna nova *@
+                <th style="cursor: pointer" @onclick='() => Ordenar("Preco")'>
+                    Preço @IconeOrdenacao("Preco")
+                </th>
                 <th>Stock</th>
                 <th>Imagem</th>
                 <th>Estado</th>
@@ -42,21 +103,33 @@ else
             {
                 <tr>
                     <td>@p.Titulo</td>
-                    <td>@p.Categoria?.Nome</td>
+                    <td>
+                        <span class="badge bg-secondary">@p.Categoria?.Nome</span>
+                    </td>
+
+                    @* LÓGICA DO FORNECEDOR VS ADMIN *@
+                    <td>
+                        @if (p.Fornecedor != null)
+                        {
+                            <span class="text-primary fw-bold"><i class="bi bi-person"></i> @p.Fornecedor.NomeCompleto</span>
+                        }
+                        else
+                        {
+                            <span class="text-dark fw-bold"><i class="bi bi-shop"></i> Administrador</span>
+                        }
+                    </td>
+
                     <td><strong>@p.PrecoFinal.ToString("C")</strong></td>
                     <td>@p.Stock</td>
                     <td>
                         @if (!string.IsNullOrEmpty(p.ImagemUrl))
                         {
                             <img src="@($"https://localhost:7198/{p.ImagemUrl}")"
-                                 width="50" height="50"
-                                 style="object-fit:cover"
-                                 class="rounded"
-                                 alt="Imagem do produto" />
+                                 width="40" height="40" class="rounded border" style="object-fit:cover" />
                         }
                         else
                         {
-                            <span class="text-muted">Sem foto</span>
+                            <small class="text-muted">N/A</small>
                         }
                     </td>
                     <td>
@@ -70,38 +143,195 @@ else
                         }
                     </td>
                     <td>
-                        <a href="/produtos/editar/@p.Id" class="btn btn-sm btn-outline-primary me-2">
-                            <i class="bi bi-pencil"></i> Editar
+                        <a href="/produtos/editar/@p.Id" class="btn btn-sm btn-outline-primary" title="Editar">
+                            <i class="bi bi-pencil"></i>
                         </a>
-
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ApagarProduto(p)">
-                            <i class="bi bi-trash"></i> Apagar
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ApagarProduto(p)" title="Apagar">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
+
+    @* PAGINAÇÃO *@
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <span>Página @paginaAtual de @totalPaginas (Total: @totalItems items)</span>
+        <div>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="PaginaAnterior" disabled="@(paginaAtual == 1)">
+                Anterior
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="PaginaProxima" disabled="@(paginaAtual == totalPaginas)">
+                Próximo
+            </button>
+        </div>
+    </div>
 }
 
 @code {
+    // Dados da Tabela
     private List<Produto>? listaProdutos;
+
+    // Dados para os Filtros (Dropdowns)
+    private List<Categoria> listaCategorias = new();
+    private List<ApplicationUser> listaFornecedores = new();
+
+    // Variáveis de Filtro
+    private string filtroTexto = "";
+    private int filtroCategoriaId = 0;
+    private string filtroEstado = "";
+    private string filtroFornecedorId = "";
+
+    // Variáveis de Paginação
+    private int paginaAtual = 1;
+    private int tamanhoPagina = 5; // Mudar aqui para mostrar mais ou menos itens
+    private int totalItems = 0;
+    private int totalPaginas => (int)Math.Ceiling((double)totalItems / tamanhoPagina);
+
+    // Variáveis de Ordenação
+    private string colunaOrdenacao = "Titulo";
+    private bool ordemAscendente = true;
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. Carregar Categorias para o Dropdown
+        listaCategorias = await Context.Categorias.ToListAsync();
+
+        // 2. Carregar Fornecedores (Utilizadores que têm produtos) para o Dropdown
+        // Isto é um truque para não carregar a BD toda, vamos buscar apenas users que têm a role Fornecedor ou produtos
+        // Para simplificar, vou buscar todos os users da tabela AspNetUsers
+        var usersFornecedores = await UserManager.GetUsersInRoleAsync("Fornecedor");
+
+        listaFornecedores = usersFornecedores.ToList();
+
         await CarregarProdutos();
     }
 
     private async Task CarregarProdutos()
     {
-        listaProdutos = await Context.Produtos
+        // Começar a Query (ainda não vai à BD)
+        var query = Context.Produtos
             .Include(p => p.Categoria)
+            .Include(p => p.Fornecedor) // IMPORTANTE: Incluir fornecedor para ver o nome
+            .AsQueryable();
+
+        // --- FILTROS ---
+        if (!string.IsNullOrWhiteSpace(filtroTexto))
+        {
+            query = query.Where(p => p.Titulo.Contains(filtroTexto));
+        }
+
+        if (filtroCategoriaId > 0)
+        {
+            if (filtroCategoriaId > 0)
+            {
+                // 1. Descobrir todos os IDs da família (Pai + Filhos + Netos)
+                var idsPermitidos = ObterIdsCategoriaEFilhos(filtroCategoriaId);
+
+                // 2. FILTRO CORRIGIDO 🔧
+                // "p.CategoriaId.HasValue" -> Garante que não é nulo
+                // "p.CategoriaId.Value" -> Pega no número int real
+                query = query.Where(p => p.CategoriaId.HasValue &&
+                                         idsPermitidos.Contains(p.CategoriaId.Value));
+            }
+        }
+
+        if (!string.IsNullOrEmpty(filtroEstado))
+        {
+            bool estadoBool = filtroEstado == "Ativo";
+            query = query.Where(p => p.IsAtivo == estadoBool);
+        }
+
+        if (!string.IsNullOrEmpty(filtroFornecedorId))
+        {
+            if (filtroFornecedorId == "Admin")
+            {
+                // Se escolheu Admin, queremos onde FornecedorId é NULL
+                query = query.Where(p => p.FornecedorId == null);
+            }
+            else
+            {
+                // Se escolheu um fornecedor específico
+                query = query.Where(p => p.FornecedorId == filtroFornecedorId);
+            }
+        }
+
+        // --- ORDENAÇÃO ---
+        switch (colunaOrdenacao)
+        {
+            case "Titulo":
+                query = ordemAscendente ? query.OrderBy(p => p.Titulo) : query.OrderByDescending(p => p.Titulo);
+                break;
+            case "Categoria":
+                query = ordemAscendente ? query.OrderBy(p => p.Categoria.Nome) : query.OrderByDescending(p => p.Categoria.Nome);
+                break;
+            case "Preco":
+                query = ordemAscendente ? query.OrderBy(p => p.PrecoFinal) : query.OrderByDescending(p => p.PrecoFinal);
+                break;
+            default:
+                query = query.OrderBy(p => p.Id);
+                break;
+        }
+
+        // --- PAGINAÇÃO ---
+        totalItems = await query.CountAsync(); // Contar total antes de cortar a página
+
+        // Se a página atual ficou fora dos limites (ex: apagámos produtos), voltar à 1
+        if (paginaAtual > totalPaginas && totalPaginas > 0) paginaAtual = 1;
+
+        listaProdutos = await query
+            .Skip((paginaAtual - 1) * tamanhoPagina)
+            .Take(tamanhoPagina)
             .AsNoTracking()
             .ToListAsync();
     }
 
+    // --- MÉTODOS AUXILIARES ---
+
+    private async Task Ordenar(string coluna)
+    {
+        if (colunaOrdenacao == coluna)
+        {
+            // Se clicou na mesma, inverte a ordem
+            ordemAscendente = !ordemAscendente;
+        }
+        else
+        {
+            // Se clicou numa nova, começa ascendente
+            colunaOrdenacao = coluna;
+            ordemAscendente = true;
+        }
+        await CarregarProdutos();
+    }
+
+    private MarkupString IconeOrdenacao(string coluna)
+    {
+        if (colunaOrdenacao != coluna) return new MarkupString("");
+        return new MarkupString(ordemAscendente ? "<i class='bi bi-arrow-down'></i>" : "<i class='bi bi-arrow-up'></i>");
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (paginaAtual > 1)
+        {
+            paginaAtual--;
+            await CarregarProdutos();
+        }
+    }
+
+    private async Task PaginaProxima()
+    {
+        if (paginaAtual < totalPaginas)
+        {
+            paginaAtual++;
+            await CarregarProdutos();
+        }
+    }
+
     private async Task ApagarProduto(Produto p)
     {
+        // (A TUA LÓGICA DE APAGAR MANTÉM-SE IGUAL, copiei do teu código anterior)
         bool confirmar = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar '{p.Titulo}'?");
 
         if (confirmar)
@@ -112,54 +342,45 @@ else
 
                 if (produtoParaApagar != null)
                 {
-                    // --- CORREÇÃO DO APAGAR ---
                     if (!string.IsNullOrEmpty(produtoParaApagar.ImagemUrl))
                     {
                         try
                         {
-                            // 1. Caminho para a pasta da API
                             var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
-
-                            // 2. IMPORTANTE: Limpar o "?v=..." do URL
-                            // Se o URL for "imagens/15.png?v=123", isto pega só no "imagens/15.png"
                             var urlLimpo = produtoParaApagar.ImagemUrl.Split('?')[0];
-
-                            // 3. Montar o caminho final
-                            // Convertemos as barras para o formato do Windows
                             var caminhoRelativo = urlLimpo.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
                             var caminhoImagem = Path.Combine(pastaApi, caminhoRelativo);
-
-                            // Debug: Escreve na consola para veres onde ele está a procurar (Vê na janela Output do VS)
-                            Console.WriteLine($"A tentar apagar: {caminhoImagem}");
-
-                            if (File.Exists(caminhoImagem))
-                            {
-                                File.Delete(caminhoImagem);
-                                Console.WriteLine("Ficheiro apagado com sucesso.");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Ficheiro não encontrado no disco.");
-                            }
+                            if (File.Exists(caminhoImagem)) File.Delete(caminhoImagem);
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine("Erro ao apagar ficheiro físico: " + ex.Message);
-                        }
+                        catch { }
                     }
-
-                    // --- APAGAR DA BD ---
                     Context.Produtos.Remove(produtoParaApagar);
                     await Context.SaveChangesAsync();
-
                     await CarregarProdutos();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Erro ao apagar: {ex.Message}");
                 await JS.InvokeVoidAsync("alert", "Erro ao apagar produto. Verifique se existem encomendas associadas.");
             }
         }
+    }
+
+    private List<int> ObterIdsCategoriaEFilhos(int categoriaId)
+    {
+        // 1. Começa por adicionar a própria categoria selecionada
+        var listaIds = new List<int> { categoriaId };
+
+        // 2. Procura na lista em memória quem são os filhos diretos
+        // (Assumindo que a tua entidade Categoria tem um campo ParentId ou CategoriaPaiId)
+        var filhos = listaCategorias.Where(c => c.CategoriaPaiId == categoriaId).ToList();
+
+        // 3. Para cada filho, vai buscar os netos (Recursividade)
+        foreach (var filho in filhos)
+        {
+            listaIds.AddRange(ObterIdsCategoriaEFilhos(filho.Id));
+        }
+
+        return listaIds;
     }
 }

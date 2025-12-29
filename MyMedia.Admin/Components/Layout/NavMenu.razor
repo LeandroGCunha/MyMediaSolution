@@ -1,41 +1,35 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿
+<iv class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">MyMedia.Admin</a>
     </div>
-</div>
+</iv>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                @* Este é o ícone da casa oficial do Bootstrap *@
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="categorias">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Categorias
+                <span class="bi bi-tags-fill" aria-hidden="true"></span> Categorias
             </NavLink>
         </div>
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="produtos">
-                <span class="bi bi-box-seam" aria-hidden="true"></span> Produtos
+                <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Produtos
             </NavLink>
         </div>
-        <AuthorizeView Roles="Administrador">
+
+        <AuthorizeView Roles="Administrador, Funcionario">
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="utilizadores">
@@ -44,15 +38,16 @@
                 </div>
             </Authorized>
         </AuthorizeView>
+
         <AuthorizeView Roles="Administrador, Funcionario">
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="encomendas">
-                        <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Encomendas
+                        <span class="bi bi-clipboard-check-fill" aria-hidden="true"></span> Encomendas
                     </NavLink>
                 </div>
             </Authorized>
         </AuthorizeView>
+
     </nav>
 </div>
-

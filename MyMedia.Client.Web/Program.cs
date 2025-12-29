@@ -98,12 +98,20 @@ app.MapPost("/account/login", async (HttpContext context, [FromForm] string emai
     // 1. Enviar pedido à API
     var response = await client.PostAsJsonAsync("api/auth/login", new { UserName = email, Password = password });
 
+    // ?? NOVA VERIFICAÇÃO: CONTA PENDENTE (Erro 403)
+    // Se a API devolver 403, mandamos para o erro "pendente" (mensagem amarela)
+    if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+    {
+        return Results.Redirect("/login?error=pendente");
+    }
+
+    // ?? ERRO GENÉRICO (Password errada ou User não existe - Erro 400/401)
     if (!response.IsSuccessStatusCode)
     {
         return Results.Redirect("/login?error=credenciais_invalidas");
     }
 
-    // 2. ?? LER A RESPOSTA (JSON) PARA SABER AS ROLES
+    // 2. LER A RESPOSTA (JSON) PARA SABER AS ROLES
     var jsonString = await response.Content.ReadAsStringAsync();
     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -113,10 +121,10 @@ app.MapPost("/account/login", async (HttpContext context, [FromForm] string emai
     var claims = new List<Claim>
     {
         new Claim(ClaimTypes.Name, email),
-        new Claim(ClaimTypes.NameIdentifier, loginResult.UserId ?? "")
+        new Claim(ClaimTypes.NameIdentifier, loginResult?.UserId ?? "") // Garante que não rebenta se vier null
     };
 
-    // 3. ?? ADICIONAR AS ROLES REAIS (FORNECEDOR OU CLIENTE)
+    // 3. ADICIONAR AS ROLES REAIS (FORNECEDOR OU CLIENTE)
     if (loginResult?.Roles != null)
     {
         foreach (var role in loginResult.Roles)

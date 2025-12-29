@@ -13,5 +13,7 @@ namespace MyMedia.Data.Entities
 
         // Data de criação da conta (útil para gestão)
         public DateTime DataRegisto { get; set; } = DateTime.Now;
+
+        public bool IsActive { get; set; }
     }
 }

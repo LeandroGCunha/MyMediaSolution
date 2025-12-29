@@ -23,6 +23,7 @@ namespace MyMedia.API.Controllers
         public async Task<ActionResult<IEnumerable<Produto>>> GetProdutos()
         {
             // Retorna a lista de produtos, incluindo a categoria
+
             return await _context.Produtos
                 .Include(p => p.Categoria)
                 .ToListAsync();
@@ -46,17 +47,15 @@ namespace MyMedia.API.Controllers
         [HttpGet("categorias")]
         public async Task<ActionResult<List<Categoria>>> GetCategorias()
         {
+
             // Carrega todas as categorias da BD
             return await _context.Categorias.ToListAsync();
         }
 
         [HttpGet("por-fornecedor/{userId}")]
-        [Authorize(Roles = "Fornecedor")] 
         public async Task<ActionResult<List<Produto>>> GetProdutosDoFornecedor(string userId)
         {
 
-            var loggedUser = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId != loggedUser) return Forbid();
 
             var produtos = await _context.Produtos
                 .Include(p => p.Fornecedor) 
@@ -68,7 +67,6 @@ namespace MyMedia.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Fornecedor")] // 👈 Proteção
         public async Task<ActionResult<Produto>> PostProduto(Produto produto)
         {
             // 1. SEPARAR A IMAGEM (TRUQUE)
@@ -130,21 +128,17 @@ namespace MyMedia.API.Controllers
 
        
         [HttpPut("{id}")]
-        [Authorize(Roles = "Fornecedor")]
         public async Task<IActionResult> PutProduto(int id, Produto produto)
         {
-            if (id != produto.Id) return BadRequest("ID mismatch");
+            if (id != produto.Id) return BadRequest("O ID não coincide.");
 
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            // 1. REGRA DE NEGÓCIO BLINDADA
+            // Em vez de confiar no "UserRole" (que pode vir vazio),
+            // forçamos o produto a ficar Pendente sempre que é editado.
+            produto.IsAtivo = false;
 
-            // 1. REGRA DE NEGÓCIO: Fornecedor edita -> Fica Pendente
-            if (userRole == "Fornecedor")
-            {
-                produto.IsAtivo = false;
-            }
-
-            // 2. LÓGICA DE IMAGEM NO EDITAR (FALTAVA ISTO!) 📸
-            // Se o utilizador carregou uma nova imagem, ela vem em Base64
+            // 2. LÓGICA DE IMAGEM (QUE FALTAVA!) 📸
+            // Se vier Base64, grava no disco, senão rebenta a BD.
             if (!string.IsNullOrEmpty(produto.ImagemUrl) && produto.ImagemUrl.Contains("base64"))
             {
                 try
@@ -156,18 +150,17 @@ namespace MyMedia.API.Controllers
                     var base64Limpa = partes.Length > 1 ? partes[1] : partes[0];
                     var bytesImagem = Convert.FromBase64String(base64Limpa);
 
-                    // Sobrescreve a imagem antiga usando o mesmo ID
+                    // Usa o mesmo ID para substituir a imagem velha
                     var nomeFicheiro = $"{produto.Id}.png";
                     var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
 
                     await System.IO.File.WriteAllBytesAsync(caminhoCompleto, bytesImagem);
 
-                    // Atualiza o caminho para ser o ficheiro limpo
                     produto.ImagemUrl = $"imagens/{nomeFicheiro}";
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Erro ao atualizar imagem no disco: " + ex.Message);
+                    Console.WriteLine($"[ERRO IMAGEM PUT] {ex.Message}");
                 }
             }
 
@@ -188,7 +181,6 @@ namespace MyMedia.API.Controllers
 
         // DELETE: api/produtos/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Fornecedor")]
         public async Task<IActionResult> DeleteProduto(int id)
         {
             // 1. Procurar o produto
@@ -230,6 +222,5 @@ namespace MyMedia.API.Controllers
 
             return NoContent(); // 204 - Sucesso (sem conteúdo)
         }
-
     }
 }

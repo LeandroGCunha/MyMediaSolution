@@ -11,23 +11,26 @@
 <h3>Gestão de Categorias</h3>
 
 <div class="mb-3">
-    <a href="/categorias/criar" class="btn btn-primary">Nova Categoria</a>
+    <a href="/categorias/criar" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Nova Categoria
+    </a>
 </div>
 
 @if (listaCategorias == null)
 {
-    <p><em>A carregar dados...</em></p>
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">A carregar...</span>
+    </div>
 }
 else if (!listaCategorias.Any())
 {
-    <p>Não existem categorias registadas.</p>
+    <div class="alert alert-warning">Não existem categorias registadas.</div>
 }
 else
 {
-    <table class="table table-striped">
-        <thead>
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
             <tr>
-                <th>ID</th>
                 <th>Nome</th>
                 <th>Categoria Mãe</th>
                 <th>Descrição</th>
@@ -38,17 +41,36 @@ else
             @foreach (var cat in listaCategorias)
             {
                 <tr>
-                    <td>@cat.Id</td>
-                    <td>@cat.Nome</td>
+                    <td><strong>@cat.Nome</strong></td>
                     <td>
-                        @(cat.CategoriaPai?.Nome ?? "- Principal -")
+                        @if (cat.CategoriaPai != null)
+                        {
+                            <i class="bi bi-arrow-return-right me-1"></i> 
+                            <span class="text-muted">@cat.CategoriaPai.Nome</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">- Principal -</span>
+                        }
                     </td>
-                    <td>@cat.Descricao</td>
                     <td>
-                        <a href="/categorias/EditarCategoria/@cat.Id" class="btn btn-sm btn-warning">Editar</a>
+                        @if (string.IsNullOrEmpty(cat.Descricao))
+                        {
+                            <span class="text-muted small">N/A</span>
+                        }
+                        else
+                        {
+                            @cat.Descricao
+                        }
+                    </td>
+                    <td>
+                        @* Botões iguais à página de Produtos *@
+                        <a href="/categorias/EditarCategoria/@cat.Id" class="btn btn-sm btn-outline-primary me-2" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
 
-                        <button class="btn btn-sm btn-danger" @onclick="() => ApagarCategoria(cat)">
-                            Apagar
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ApagarCategoria(cat)" title="Apagar">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
@@ -67,31 +89,37 @@ else
 
     private async Task CarregarCategorias()
     {
-        listaCategorias = await Context.Categorias.ToListAsync();
+        // Precisamos do Include para mostrar o nome da Categoria Mãe
+        listaCategorias = await Context.Categorias
+            .Include(c => c.CategoriaPai)
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     private async Task ApagarCategoria(Categoria cat)
     {
-        // 1. Pergunta de confirmação (JavaScript)
         bool confirmacao = await JS.InvokeAsync<bool>("confirm", $"Tem a certeza que quer apagar a categoria '{cat.Nome}'?");
 
-        if (!confirmacao) return; // Se disser "Cancelar", sai daqui.
+        if (!confirmacao) return;
 
         try
         {
-            // 2. Remove do Contexto
-            Context.Categorias.Remove(cat);
+            // Busca a categoria à BD para garantir que existe antes de apagar
+            var catParaApagar = await Context.Categorias.FindAsync(cat.Id);
 
-            // 3. Tenta gravar na BD
-            await Context.SaveChangesAsync();
+            if (catParaApagar != null)
+            {
+                Context.Categorias.Remove(catParaApagar);
+                await Context.SaveChangesAsync();
 
-            // 4. Se correu bem, atualiza a lista no ecrã sem recarregar a página
-            listaCategorias.Remove(cat);
+                // Recarrega a lista
+                await CarregarCategorias();
+            }
         }
         catch (Exception)
         {
-            // 5. Se der erro (ex: tem subcategorias), mostra aviso
-            await JS.InvokeVoidAsync("alert", "ERRO: Não é possível apagar esta categoria. Verifique se ela tem subcategorias associadas.");
+            // Erro comum: Tentar apagar categoria que tem produtos ou subcategorias
+            await JS.InvokeVoidAsync("alert", "ERRO: Não é possível apagar esta categoria porque ela está a ser usada (tem produtos ou subcategorias).");
         }
     }
 }

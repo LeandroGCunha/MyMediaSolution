@@ -1,65 +1,112 @@
 ﻿@page "/encomendas"
+@attribute [Authorize(Roles = "Administrador, Funcionario")]
 @using Microsoft.EntityFrameworkCore
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @inject ApplicationDbContext Context
-@attribute [Authorize(Roles = "Administrador, Funcionario")]
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<h3>Gestão de Encomendas</h3>
+<h3><i class="bi bi-clipboard-check-fill me-2"></i>Gestão de Encomendas</h3>
 
+@* --- FILTROS --- *@
+<div class="card mb-4 mt-3">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Filtrar por Estado:</label>
+                <select class="form-select" @bind="filtroEstado" @bind:after="CarregarDados">
+                    <option value="">Todas</option>
+                    <option value="Pendente">Pendentes / Pagas</option>
+                    <option value="Em Processamento">Em Processamento</option>
+                    <option value="Enviada">Enviadas</option>
+                    <option value="Cancelada">Canceladas</option>
+                </select>
+            </div>
+            <div class="col-md-8 d-flex align-items-end">
+                <span class="text-muted">Total de encomendas encontradas: @(listaEncomendas?.Count ?? 0)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* --- TABELA DE ENCOMENDAS --- *@
 @if (listaEncomendas == null)
 {
-    <p>A carregar...</p>
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">A carregar...</span>
+    </div>
 }
 else if (!listaEncomendas.Any())
 {
-    <div class="alert alert-info">Ainda não existem encomendas registadas.</div>
+    <div class="alert alert-warning">Não existem encomendas com estes critérios.</div>
 }
 else
 {
-    <table class="table table-hover">
-        <thead>
+    <table class="table table-hover align-middle shadow-sm">
+        <thead class="table-dark">
             <tr>
                 <th>ID</th>
                 <th>Data</th>
                 <th>Cliente</th>
                 <th>Total</th>
                 <th>Estado</th>
-                <th>Ações</th>
+                <th class="text-end">Ações</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var enc in listaEncomendas)
             {
                 <tr>
-                    <td>#@enc.Id</td>
-                    <td>@enc.Data.ToShortDateString()</td>
-                    <td>@enc.ApplicationUser?.Email</td>
-                    <td><strong>@enc.ValorTotal.ToString("C")</strong></td>
+                    <td><strong>#@enc.Id</strong></td>
+                    <td>@enc.Data.ToString("dd/MM/yyyy HH:mm")</td>
                     <td>
-                        @if (enc.Estado == "Pendente")
+                        <div class="small">@enc.ApplicationUser?.NomeCompleto</div>
+                        <div class="text-muted small">@enc.ApplicationUser?.Email</div>
+                    </td>
+                    <td class="fw-bold text-primary">@enc.ValorTotal.ToString("C")</td>
+                    <td>
+                        @if (enc.Estado == "Pendente" || enc.Estado == "Paga")
                         {
-                            <span class="badge bg-warning text-dark">Pendente</span>
+                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pendente</span>
                         }
-                        else if (enc.Estado == "Paga")
+                        else if (enc.Estado == "Em Processamento")
                         {
-
-                            <span class="badge bg-info text-dark">Paga</span>
+                            <span class="badge bg-info text-dark"><i class="bi bi-gear-fill"></i> A preparar</span>
                         }
                         else if (enc.Estado == "Enviada")
                         {
-
-                            <span class="badge bg-success">Enviada</span>
+                            <span class="badge bg-success"><i class="bi bi-truck"></i> Enviada</span>
+                        }
+                        else if (enc.Estado == "Cancelada")
+                        {
+                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Cancelada</span>
                         }
                     </td>
-                    <td>
-                        @if (enc.Estado != "Enviada")
+                    <td class="text-end">
+                        
+                        @* AÇÕES DE ESTADO *@
+                        @if (enc.Estado == "Pendente" || enc.Estado == "Paga")
                         {
-                            <button class="btn btn-sm btn-success" @onclick="() => MarcarEnviada(enc)">
-                                Marcar Enviada
+                            <button class="btn btn-sm btn-success me-1" @onclick="() => ConfirmarEncomenda(enc)" title="Confirmar Venda">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger me-1" @onclick="() => RejeitarEncomenda(enc)" title="Rejeitar Venda">
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         }
+                        else if (enc.Estado == "Em Processamento")
+                        {
+                            <button class="btn btn-sm btn-primary me-1" @onclick="() => ExpedirEncomenda(enc)" title="Expedir Encomenda">
+                                <i class="bi bi-box-seam"></i> Expedir
+                            </button>
+                        }
+
+                        @* 👇 BOTÃO VER DETALHES (ABRE O POP-UP) *@
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => VerDetalhes(enc.Id)" title="Ver Produtos">
+                            <i class="bi bi-eye"></i> Detalhes
+                        </button>
+
                     </td>
                 </tr>
             }
@@ -67,8 +114,109 @@ else
     </table>
 }
 
+@* --- O POP-UP (MODAL) --- *@
+@if (encomendaSelecionada != null)
+{
+    @* Fundo escuro atrás do modal *@
+    <div class="modal-backdrop fade show"></div>
+
+    @* O Modal*@
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">
+                        📦 Detalhes da Encomenda #@encomendaSelecionada.Id
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="FecharDetalhes"></button>
+                </div>
+                <div class="modal-body">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Cliente:</strong> @encomendaSelecionada.ApplicationUser?.NomeCompleto
+                            <br/>
+                            <small class="text-muted">@encomendaSelecionada.ApplicationUser?.Email</small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <strong>Data:</strong> @encomendaSelecionada.Data.ToString("f") <br/>
+                            <strong>Estado Atual:</strong> @encomendaSelecionada.Estado
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2">Produtos</h6>
+                    
+                    @* LISTA DE PRODUTOS DA ENCOMENDA *@
+                    @if (encomendaSelecionada.Itens == null || !encomendaSelecionada.Itens.Any())
+                    {
+                        <p class="text-muted">Não foi possível carregar os itens desta encomenda.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-end">Preço Unit.</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in encomendaSelecionada.Itens)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if(item.Produto != null)
+                                            {
+                                                <span>@item.Produto.Titulo</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Produto Removido</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">@item.Quantidade</td>
+                                        <td class="text-end">@item.PrecoUnitario.ToString("C")</td>
+                                        <td class="text-end fw-bold">
+                                            @((item.Quantidade * item.PrecoUnitario).ToString("C"))
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <td colspan="3" class="text-end fw-bold">TOTAL FINAL:</td>
+                                    <td class="text-end fw-bold text-primary fs-5">
+                                        @encomendaSelecionada.ValorTotal.ToString("C")
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="FecharDetalhes">Fechar</button>
+                    @if(encomendaSelecionada.Estado == "Pendente")
+                    {
+                        <button class="btn btn-success" @onclick="() => { ConfirmarEncomenda(encomendaSelecionada); FecharDetalhes(); }">
+                            Aprovar Encomenda
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Encomenda>? listaEncomendas;
+    
+    // 👇 Variável para guardar a encomenda que está aberta no Pop-up
+    private Encomenda? encomendaSelecionada = null; 
+    
+    private string filtroEstado = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,17 +225,91 @@ else
 
     private async Task CarregarDados()
     {
-        // Carrega encomendas e os dados do cliente
-        listaEncomendas = await Context.Encomendas
+        var query = Context.Encomendas
             .Include(e => e.ApplicationUser)
             .OrderByDescending(e => e.Data)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(filtroEstado))
+        {
+            if (filtroEstado == "Pendente")
+                query = query.Where(e => e.Estado == "Pendente" || e.Estado == "Paga");
+            else
+                query = query.Where(e => e.Estado == filtroEstado);
+        }
+
+        listaEncomendas = await query.ToListAsync();
     }
 
-    private async Task MarcarEnviada(Encomenda enc)
+    // 👇 MÉTODO PARA ABRIR O MODAL
+    private async Task VerDetalhes(int id)
+    {
+        //
+        encomendaSelecionada = await Context.Encomendas
+            .Include(e => e.ApplicationUser)
+            .Include(e => e.Itens)          
+                .ThenInclude(l => l.Produto)  
+            .FirstOrDefaultAsync(e => e.Id == id);
+    }
+
+    // 👇 MÉTODO PARA FECHAR O MODAL
+    private void FecharDetalhes()
+    {
+        encomendaSelecionada = null;
+    }
+
+    // --- AÇÕES DE ESTADO (Iguais ao anterior) ---
+    private async Task ConfirmarEncomenda(Encomenda enc)
+    {
+        enc.Estado = "Em Processamento";
+        await Context.SaveChangesAsync();
+    }
+
+    private async Task RejeitarEncomenda(Encomenda enc)
+    {
+        // Confirmação de segurança
+        bool confirm = await JS.InvokeAsync<bool>("confirm", "Tem a certeza que quer rejeitar/cancelar? O stock será reposto.");
+
+        if (confirm)
+        {
+            // 1. Vamos buscar a encomenda COMPLETA à BD (com itens e produtos)
+            // É essencial fazer isto para garantir que temos os dados para devolver o stock
+            var encomendaCompleta = await Context.Encomendas
+                .Include(e => e.Itens)        // <--- ATENÇÃO: Usa o nome correto (Itens ou Linhas)
+                    .ThenInclude(i => i.Produto) // <--- Precisamos do Produto para alterar o Stock
+                .FirstOrDefaultAsync(e => e.Id == enc.Id);
+
+            if (encomendaCompleta != null)
+            {
+                // Verificação extra: Só devolve stock se a encomenda AINDA NÃO estava cancelada
+                if (encomendaCompleta.Estado != "Cancelada")
+                {
+                    // 2. Ciclo para devolver o stock
+                    foreach (var item in encomendaCompleta.Itens)
+                    {
+                        if (item.Produto != null)
+                        {
+                            // AQUI ESTÁ A MAGIA: Stock atual + Quantidade devolvida
+                            item.Produto.Stock += item.Quantidade;
+                        }
+                    }
+
+                    // 3. Mudar o estado na BD
+                    encomendaCompleta.Estado = "Cancelada";
+
+                    // 4. Gravar tudo de uma vez (Estado + Atualização de Stocks)
+                    await Context.SaveChangesAsync();
+
+                    // 5. Atualizar visualmente a lista no ecrã (para não teres de fazer F5)
+                    enc.Estado = "Cancelada";
+                }
+            }
+        }
+    }
+
+    private async Task ExpedirEncomenda(Encomenda enc)
     {
         enc.Estado = "Enviada";
         await Context.SaveChangesAsync();
-        // Não precisa recarregar tudo, o Blazor atualiza a UI automaticamente se mudarmos o objeto
     }
 }

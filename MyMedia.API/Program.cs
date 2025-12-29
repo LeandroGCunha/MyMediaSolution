@@ -1,31 +1,31 @@
-using Microsoft.AspNetCore.Identity;
+Ôªøusing Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
 using System.Text.Json.Serialization;
-// REMOVIDO: DataProtection e System.IO j· n„o s„o precisos aqui
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. CONFIGURA«√O DA BASE DE DADOS
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// 2. CONFIGURA«√O DO IDENTITY
+// 2. CONFIGURA√á√ÉO DO IDENTITY
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// 3. AJUSTE DO COMPORTAMENTO DA API (Para n„o redirecionar para Login HTML)
-// Mantemos isto apenas para garantir que, se houver erro de acesso, a API devolve erro 401 e n„o tenta abrir uma p·gina web.
+// 3. AJUSTE DO COMPORTAMENTO DA API (Para n√£o redirecionar para Login HTML)
+// Mantemos isto apenas para garantir que, se houver erro de acesso, a API devolve erro 401 e n√£o tenta abrir uma p√°gina web.
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Events.OnRedirectToLogin = context =>
     {
-        context.Response.StatusCode = 401; // Diz "N„o Autorizado" em vez de redirecionar
+        context.Response.StatusCode = 401; // Diz "N√£o Autorizado" em vez de redirecionar
         return Task.CompletedTask;
     };
 });

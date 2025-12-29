@@ -29,6 +29,7 @@ namespace MyMedia.Server.Controllers
                 Email = request.Email,
                 NomeCompleto = request.NomeCompleto, 
                 NIF = request.NIF,
+                IsActive = false
             };
 
             // 2. Gravar na BD (com password segura)
@@ -55,20 +56,33 @@ namespace MyMedia.Server.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginRequest)
         {
+            // 1. Procurar o utilizador
             var user = await _userManager.FindByNameAsync(loginRequest.UserName);
+
             if (user == null) return BadRequest("User não encontrado.");
 
+            // 👇 2. (NOVO) VERIFICAR SE ESTÁ ATIVO 🛑
+            // Se o utilizador existir, mas o IsActive for falso, barramos a entrada aqui.
+            if (user.IsActive == false)
+            {
+                // Retornamos 403 (Forbidden). 
+                // O teu Program.cs do Client vai apanhar este 403 e mostrar o aviso amarelo.
+                return StatusCode(403, "Conta pendente de aprovação.");
+            }
+
+            // 3. Verificar a Password
             var result = await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, false);
+
             if (!result.Succeeded) return BadRequest("Password errada.");
 
-            // 👇 IMPORTANTE: Buscar as roles para enviar no JSON
+            // 4. Buscar Roles e Responder
             var roles = await _userManager.GetRolesAsync(user);
-            
+
             return Ok(new
             {
                 Message = "Login com sucesso!",
-                Roles = roles, // <--- A Web App precisa disto!
-                UserId = user.Id // 👈 ADICIONA ESTA LINHA!
+                Roles = roles,
+                UserId = user.Id
             });
         }
         [HttpPost("logout")]

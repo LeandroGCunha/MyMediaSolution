@@ -15,9 +15,20 @@
                     @* Se a URL tiver ?error=..., mostramos o alerta *@
                     @if (!string.IsNullOrEmpty(ErrorCode))
                     {
-                        <div class="alert alert-danger text-center">
-                            Utilizador ou password incorretos.
-                        </div>
+                        @if (ErrorCode == "pendente")
+                        {
+                            <div class="alert alert-warning text-center">
+                                <i class="bi bi-hourglass-split"></i><br />
+                                <strong>Conta Pendente!</strong><br />
+                                O seu registo aguarda aprovação de um administrador.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger text-center">
+                                Utilizador ou password incorretos.
+                            </div>
+                        }
                     }
 
                     @* ?? AQUI ESTÁ A MUDANÇA CRÍTICA ?? *@
