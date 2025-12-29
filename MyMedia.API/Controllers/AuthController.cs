@@ -71,7 +71,8 @@ namespace MyMedia.Server.Controllers
             }
 
             // 3. Verificar a Password
-            var result = await _signInManager.CheckPasswordSignInAsync(user, loginRequest.Password, false);
+
+            var result = await _signInManager.PasswordSignInAsync(user, loginRequest.Password, false, false);
 
             if (!result.Succeeded) return BadRequest("Password errada.");
 

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
@@ -7,6 +8,18 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+var pathChaves = Path.Combine(Directory.GetCurrentDirectory(), "..", "ChavesPartilhadas");
+
+// Garante que a pasta existe
+if (!Directory.Exists(pathChaves))
+{
+    Directory.CreateDirectory(pathChaves);
+}
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(pathChaves))
+    .SetApplicationName("MyMediaApp"); // O Nome tem de ser igual na API
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

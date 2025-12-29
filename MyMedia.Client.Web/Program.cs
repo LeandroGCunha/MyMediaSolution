@@ -1,16 +1,32 @@
-using MyMedia.Client.Web.Components;
-using MyMedia.Client.RCL.Services;
-using MyMedia.Client.RCL.Models; // <--- GARANTE QUE TENS ISTO PARA O DTO
-using Microsoft.Extensions.FileProviders;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Microsoft.Extensions.FileProviders;
+using MyMedia.Client.RCL.Models; // <--- GARANTE QUE TENS ISTO PARA O DTO
+using MyMedia.Client.RCL.Services;
+using MyMedia.Client.Web.Components;
 using System.IO;
+using System.Security.Claims;
 using System.Text.Json; // <--- NECESSÁRIO PARA LER A RESPOSTA DA API
 
+using Microsoft.AspNetCore.DataProtection;
+
+
 var builder = WebApplication.CreateBuilder(args);
+
+
+var pathChaves = Path.Combine(Directory.GetCurrentDirectory(), "..", "ChavesPartilhadas");
+
+// Garante que a pasta existe
+if (!Directory.Exists(pathChaves))
+{
+    Directory.CreateDirectory(pathChaves);
+}
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(pathChaves))
+    .SetApplicationName("MyMediaApp"); // O Nome tem de ser igual na API
 
 // ===========================================================================
 // 1. SERVIÇOS DO BLAZOR E HTTP
@@ -45,12 +61,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
-// ? COMENTEI ISTO! O CustomAuth estava a bloquear o cookie normal
-// builder.Services.AddScoped<CustomAuthStateProvider>();
-// builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
-// builder.Services.AddScoped<ClientAuthService>();
-
-// ? ISTO É O SUFICIENTE PARA LER O COOKIE
 builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();

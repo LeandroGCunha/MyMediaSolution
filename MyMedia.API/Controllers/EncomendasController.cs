@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore; // Necessário para o .Include e .ToListAsync
+using Microsoft.EntityFrameworkCore;
 using MyMedia.Client.RCL.Models;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
@@ -10,6 +10,7 @@ namespace MyMedia.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EncomendasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -31,6 +32,8 @@ namespace MyMedia.API.Controllers
                 return BadRequest("O carrinho está vazio ou os dados são inválidos.");
             }
 
+
+            
             // 2. Descobrir QUEM está a comprar
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -38,6 +41,7 @@ namespace MyMedia.API.Controllers
             {
                 return Unauthorized("Utilizador não identificado.");
             }
+            
 
             // 3. Criar a "Cabeça" da Encomenda
             var novaEncomenda = new Encomenda
