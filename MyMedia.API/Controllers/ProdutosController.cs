@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization; 
 
 namespace MyMedia.API.Controllers
 {
@@ -50,8 +51,13 @@ namespace MyMedia.API.Controllers
         }
 
         [HttpGet("por-fornecedor/{userId}")]
+        [Authorize(Roles = "Fornecedor")] 
         public async Task<ActionResult<List<Produto>>> GetProdutosDoFornecedor(string userId)
         {
+
+            var loggedUser = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId != loggedUser) return Forbid();
+
             var produtos = await _context.Produtos
                 .Include(p => p.Fornecedor) 
                 .Include(p => p.Categoria)  
@@ -62,6 +68,7 @@ namespace MyMedia.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Fornecedor")] // 👈 Proteção
         public async Task<ActionResult<Produto>> PostProduto(Produto produto)
         {
             // 1. SEPARAR A IMAGEM (TRUQUE)
@@ -123,29 +130,46 @@ namespace MyMedia.API.Controllers
 
        
         [HttpPut("{id}")]
+        [Authorize(Roles = "Fornecedor")]
         public async Task<IActionResult> PutProduto(int id, Produto produto)
         {
-            if (id != produto.Id)
-            {
-                return BadRequest("O ID do produto não coincide.");
-            }
+            if (id != produto.Id) return BadRequest("ID mismatch");
 
-            // 1. Identificar quem está a fazer o pedido (Fornecedor ou Admin?)
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 2. APLICAR REGRA DE NEGÓCIO
+            // 1. REGRA DE NEGÓCIO: Fornecedor edita -> Fica Pendente
             if (userRole == "Fornecedor")
             {
-                // Se for Fornecedor, forçamos a ficar Pendente/Inativo.
-                // Isto impede que o fornecedor ative o produto sozinho.
                 produto.IsAtivo = false;
-
-                // Opcional: Impedir que o fornecedor mude a margem
-                // (Idealmente devíamos ir buscar o original à BD para garantir isto, 
-                // mas para o botão "Suspender" funcionar, isto chega).
             }
 
-            // Se for Admin/Funcionário, aceitamos o "IsAtivo" que vier do Frontend.
+            // 2. LÓGICA DE IMAGEM NO EDITAR (FALTAVA ISTO!) 📸
+            // Se o utilizador carregou uma nova imagem, ela vem em Base64
+            if (!string.IsNullOrEmpty(produto.ImagemUrl) && produto.ImagemUrl.Contains("base64"))
+            {
+                try
+                {
+                    var pastaImagens = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "imagens");
+                    if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
+
+                    var partes = produto.ImagemUrl.Split(',');
+                    var base64Limpa = partes.Length > 1 ? partes[1] : partes[0];
+                    var bytesImagem = Convert.FromBase64String(base64Limpa);
+
+                    // Sobrescreve a imagem antiga usando o mesmo ID
+                    var nomeFicheiro = $"{produto.Id}.png";
+                    var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
+
+                    await System.IO.File.WriteAllBytesAsync(caminhoCompleto, bytesImagem);
+
+                    // Atualiza o caminho para ser o ficheiro limpo
+                    produto.ImagemUrl = $"imagens/{nomeFicheiro}";
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Erro ao atualizar imagem no disco: " + ex.Message);
+                }
+            }
 
             _context.Entry(produto).State = EntityState.Modified;
 
@@ -155,14 +179,8 @@ namespace MyMedia.API.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!_context.Produtos.Any(e => e.Id == id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                if (!_context.Produtos.Any(e => e.Id == id)) return NotFound();
+                else throw;
             }
 
             return NoContent();
@@ -170,6 +188,7 @@ namespace MyMedia.API.Controllers
 
         // DELETE: api/produtos/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Fornecedor")]
         public async Task<IActionResult> DeleteProduto(int id)
         {
             // 1. Procurar o produto
@@ -211,5 +230,6 @@ namespace MyMedia.API.Controllers
 
             return NoContent(); // 204 - Sucesso (sem conteúdo)
         }
+
     }
 }
