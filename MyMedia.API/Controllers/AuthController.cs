@@ -76,6 +76,7 @@ namespace MyMedia.Server.Controllers
 
             if (!result.Succeeded) return BadRequest("Password errada.");
 
+            var carimbo = await _userManager.GetSecurityStampAsync(user);
             // 4. Buscar Roles e Responder
             var roles = await _userManager.GetRolesAsync(user);
 
@@ -84,6 +85,7 @@ namespace MyMedia.Server.Controllers
                 Message = "Login com sucesso!",
                 Roles = roles,
                 UserId = user.Id
+
             });
         }
         [HttpPost("logout")]

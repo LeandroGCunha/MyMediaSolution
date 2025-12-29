@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
 using MyMedia.Client.RCL.Models; // <--- GARANTE QUE TENS ISTO PARA O DTO
 using MyMedia.Client.RCL.Services;
 using MyMedia.Client.Web.Components;
-using System.IO;
 using System.Security.Claims;
 using System.Text.Json; // <--- NECESSÁRIO PARA LER A RESPOSTA DA API
 
@@ -132,6 +130,7 @@ app.MapPost("/account/login", async (HttpContext context, [FromForm] string emai
     {
         new Claim(ClaimTypes.Name, email),
         new Claim(ClaimTypes.NameIdentifier, loginResult?.UserId ?? "") // Garante que não rebenta se vier null
+
     };
 
     // 3. ADICIONAR AS ROLES REAIS (FORNECEDOR OU CLIENTE)
