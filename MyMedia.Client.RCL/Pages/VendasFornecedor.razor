@@ -1,0 +1,202 @@
+﻿@page "/painel-vendas"
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using MyMedia.Data.Entities
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Authorization
+
+@attribute [Authorize(Roles = "Fornecedor")]
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>💰 As Minhas Vendas</h3>
+            <p class="text-muted mb-0">Gestão das encomendas com os teus produtos.</p>
+        </div>
+
+        @* Pequeno resumo no topo *@
+        <div class="text-end">
+            <span class="badge bg-success p-2 fs-6 shadow-sm">
+                Lucro Confirmado: @TotalGanho.ToString("C")
+            </span>
+        </div>
+    </div>
+
+    @* 1. SE HOUVER ERRO *@
+    @if (!string.IsNullOrEmpty(mensagemErro))
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @mensagemErro
+            @if (mensagemErro.Contains("401"))
+            {
+                <br>
+                <strong>Dica:</strong>
+
+                <p> Tenta fazer Logout e Login novamente.</p>
+        
+               }
+        </div>
+    }
+
+    @* 2. SE ESTIVER A CARREGAR *@
+    else if (minhasVendas == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">A carregar vendas...</p>
+        </div>
+    }
+
+    @* 3. SE A LISTA VIER VAZIA *@
+    else if (!minhasVendas.Any())
+    {
+        <div class="alert alert-info text-center shadow-sm">
+            <h4>Ainda não tens vendas! 😢</h4>
+            <p>Assim que os clientes comprarem os teus produtos, eles aparecerão aqui.</p>
+        </div>
+    }
+
+    @* 4. SE TIVER VENDAS, MOSTRA A TABELA *@
+    else
+    {
+        <table class="table table-hover shadow-sm bg-white rounded align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Data / ID</th>
+                    <th>Os Teus Produtos</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-end">O Teu Lucro</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var venda in minhasVendas)
+                {
+                    // LÓGICA LOCAL: Filtramos apenas os produtos DESTE fornecedor nesta encomenda
+                    var meusItens = venda.Itens.Where(i => i.Produto?.FornecedorId == currentUserId).ToList();
+                    var meuTotal = meusItens.Sum(i => i.PrecoUnitario * i.Quantidade);
+
+                    <tr>
+                        @* 1. DATA E ID *@
+                        <td>
+                            <div class="fw-bold">@venda.Data.ToShortDateString()</div>
+                            <span class="badge bg-light text-dark border">#@venda.Id</span>
+                            <div class="small text-muted mt-1">
+                                <i class="bi bi-person"></i> @(venda.ApplicationUser?.NomeCompleto ?? "Cliente")
+                            </div>
+                        </td>
+
+                        @* 2. LISTA DE PRODUTOS *@
+                        <td>
+                            <ul class="list-unstyled mb-0 small">
+                                @foreach (var item in meusItens)
+                                {
+                                    <li class="mb-1">
+                                        <i class="bi bi-box-seam text-primary me-1"></i>
+                                        <strong>@item.Quantidade x</strong> @item.Produto?.Titulo
+                                    </li>
+                                }
+                            </ul>
+                        </td>
+
+                        @* 3. ESTADO *@
+                        <td class="text-center">
+                            @if (venda.Estado == "Enviada")
+                            {
+                                <span class="badge bg-success">Enviada</span>
+                            }
+                            else if (venda.Estado == "Cancelada")
+                            {
+                                <span class="badge bg-danger">Cancelada</span>
+                            }
+                            else
+                            {
+                                @* Pendente, Paga ou Em Processamento *@
+                                <span class="badge bg-warning text-dark">@venda.Estado</span>
+                            }
+                        </td>
+
+                        @* 4. LUCRO *@
+                        <td class="text-end">
+                            <span class="text-success fw-bold fs-6">@meuTotal.ToString("C")</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<Encomenda>? minhasVendas;
+    private string currentUserId = "";
+    private string mensagemErro = "";
+
+    // Variável para guardar o total ganho
+    private decimal TotalGanho = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                // Tenta apanhar o ID de várias formas
+                var claimId = user.FindFirst(ClaimTypes.NameIdentifier)
+                              ?? user.FindFirst("sub")
+                              ?? user.FindFirst("id");
+
+                if (claimId != null)
+                {
+                    currentUserId = claimId.Value;
+
+                    // 👇 AQUI: Usamos a forma simples, igual ao MeusProdutos
+                    minhasVendas = await Http.GetFromJsonAsync<List<Encomenda>>($"api/encomendas/fornecedor/{currentUserId}");
+
+                    CalcularTotais();
+                }
+                else
+                {
+                    mensagemErro = "Erro: Não conseguimos identificar a tua conta.";
+                    minhasVendas = new List<Encomenda>();
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            // Se der 401 Unauthorized, vai cair aqui
+            mensagemErro = $"Erro de comunicação com a API (Status: {ex.StatusCode}).";
+            minhasVendas = new List<Encomenda>();
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro inesperado: {ex.Message}";
+            minhasVendas = new List<Encomenda>();
+        }
+    }
+
+    private void CalcularTotais()
+    {
+        if (minhasVendas == null) return;
+
+        TotalGanho = 0;
+
+        foreach (var venda in minhasVendas)
+        {
+            var valorMeusItens = venda.Itens
+                .Where(i => i.Produto?.FornecedorId == currentUserId)
+                .Sum(i => i.PrecoUnitario * i.Quantidade);
+
+            if (venda.Estado == "Enviada")
+            {
+                TotalGanho += valorMeusItens;
+            }
+        }
+    }
+}

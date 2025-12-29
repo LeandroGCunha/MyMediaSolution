@@ -10,7 +10,6 @@ namespace MyMedia.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Ninguém entra aqui sem login!
     public class EncomendasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -123,5 +122,22 @@ namespace MyMedia.API.Controllers
 
             return Ok(encomendas);
         }
+
+      
+
+        [HttpGet("fornecedor/{fornecedorId}")]
+        public async Task<ActionResult<List<Encomenda>>> GetVendasDoFornecedor(string fornecedorId)
+        {
+            // 1. Procurar todas as encomendas que tenham pelo menos um item deste fornecedor
+            var encomendas = await _context.Encomendas
+                .Include(e => e.Itens)
+                    .ThenInclude(i => i.Produto) 
+                .Where(e => e.Itens.Any(i => i.Produto.FornecedorId == fornecedorId))
+                .OrderByDescending(e => e.Data)
+                .ToListAsync();
+
+            return Ok(encomendas);
+        }
+
     }
 }
