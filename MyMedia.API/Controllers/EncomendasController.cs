@@ -10,7 +10,6 @@ namespace MyMedia.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class EncomendasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -33,9 +32,9 @@ namespace MyMedia.API.Controllers
             }
 
 
+
             
-            // 2. Descobrir QUEM está a comprar
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = pedido.UserId;
 
             if (string.IsNullOrEmpty(userId))
             {

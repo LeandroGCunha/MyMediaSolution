@@ -15,5 +15,7 @@ namespace MyMedia.Client.RCL.Models
 
         // O que vai comprar
         public List<CarrinhoItemDto> Itens { get; set; } = new();
+
+        public string UserId { get; set; }
     }
 }

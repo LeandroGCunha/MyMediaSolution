@@ -4,10 +4,12 @@
 @using Microsoft.AspNetCore.Components.Authorization 
 @using System.Net.Http.Json
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Security.Claims
 
 @inject CarrinhoService CarrinhoSvc
 @inject NavigationManager Navigation
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
 
 <div class="container mt-4">
     <h2 class="mb-4">💳 Finalizar Encomenda</h2>
@@ -113,10 +115,20 @@
 
         try
         {
+
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            // Tenta buscar o ID (pode vir como 'sub' ou 'NameIdentifier')
+            var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value
+                         ?? user.FindFirst("sub")?.Value;
+
             // 1. Simular tempo de espera (opcional, só para parecer real)
             await Task.Delay(1500);
 
             // 2. Preencher a lista de itens no DTO
+            dadosPedido.UserId = userId;
+
             dadosPedido.Itens = CarrinhoSvc.GetItems().Select(i => new CarrinhoItemDto
             {
                 ProdutoId = i.Produto.Id,
