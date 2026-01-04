@@ -116,14 +116,18 @@
                                     <strong class="text-warning">@fullName</strong>
                                 </li>
                                 <li><a class="dropdown-item py-2" href="perfil" @onclick="FecharTudo"><i class="bi bi-person me-2"></i>Minha Conta</a></li>
+
+                                @* 👇 AQUI ESTÁ A ALTERAÇÃO PARA O FORNECEDOR 👇 *@
                                 @if (context.User.IsInRole("Fornecedor"))
                                 {
                                     <li><a class="dropdown-item py-2" href="meus-produtos" @onclick="FecharTudo"><i class="bi bi-box-seam me-2 text-info"></i>Gerir Produtos</a></li>
+                                    <li><a class="dropdown-item py-2" href="painel-vendas" @onclick="FecharTudo"><i class="bi bi-graph-up-arrow me-2 text-warning"></i>Painel de Vendas</a></li>
                                 }
                                 else
                                 {
                                     <li><a class="dropdown-item py-2" href="minhas-encomendas" @onclick="FecharTudo"><i class="bi bi-bag-check me-2 text-success"></i>Minhas Compras</a></li>
                                 }
+
                                 <li><hr class="dropdown-divider border-secondary my-2"></li>
                                 <li><a href="/account/logout" class="dropdown-item py-2 text-danger fw-bold"><i class="bi bi-box-arrow-right me-2"></i>Sair</a></li>
                             </ul>
@@ -147,20 +151,15 @@
                 </button>
             </div>
 
-            @* 3. MENU LATERAL / LINKS (Aqui está a mudança!) *@
+            @* 3. MENU LATERAL / LINKS *@
             <div class="@NavMenuCssClass w-100" id="navbarStore">
-
-                @* Tirei o fundo cinza daqui e removi as classes bg-dark *@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 mt-3 mt-lg-0 d-lg-flex flex-lg-row align-items-center">
-
                     <li class="nav-item">
-                        @* Apliquei a classe nav-link-zoom *@
                         <a class="nav-link nav-link-zoom" href="/" @onclick="CollapseNavbar">
                             Início
                         </a>
                     </li>
                     <li class="nav-item">
-                        @* Apliquei a classe nav-link-zoom *@
                         <a class="nav-link nav-link-zoom" href="/catalogo" @onclick="CollapseNavbar">
                             Catálogo
                         </a>

@@ -13,96 +13,169 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
-<h3>🚀 Adicionar Novo Produto (Para Aprovação)</h3>
+@* --- ESTILOS PREMIUM (Igual ao Editar) --- *@
+<style>
+    .text-gold {
+        color: #ffc107 !important;
+    }
 
-<div class="row">
-    <div class="col-md-8">
-        <EditForm Model="produto" OnValidSubmit="GuardarProduto">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+    /* Botão Principal Dourado */
+    .btn-gold {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+        border: none;
+        transition: 0.2s;
+    }
 
-            @* 1. TÍTULO *@
-            <div class="mb-3">
-                <label>Título:</label>
-                <InputText class="form-control" @bind-Value="produto.Titulo" placeholder="Ex: iPhone 15 Pro" />
+        .btn-gold:hover {
+            background-color: #e0a800;
+            transform: scale(1.02);
+        }
+
+    /* Inputs Modernos */
+    .form-control:focus, .form-select:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    }
+
+    /* Área de Upload */
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        transition: 0.3s;
+    }
+
+        .upload-area:hover {
+            border-color: #ffc107;
+            background-color: #fffbf0;
+        }
+</style>
+
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex align-items-center mb-4">
+        <a href="/meus-produtos" class="btn btn-outline-dark rounded-circle me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h3 class="fw-bold m-0">Novo Produto</h3>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            @* Aviso Inicial *@
+            <div class="alert alert-info border-info d-flex align-items-center rounded-3 shadow-sm mb-4">
+                <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                <div>
+                    <strong>Nota:</strong> O teu produto ficará
+                    <span class="badge bg-warning text-dark">Pendente</span> até ser aprovado por um administrador.
+                </div>
             </div>
 
-            @* 2. DESCRIÇÃO *@
-            <div class="mb-3">
-                <label>Descrição Detalhada:</label>
-                <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" placeholder="Detalhes do produto..." />
-            </div>
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-dark text-white py-3">
+                    <i class="bi bi-plus-circle text-gold me-2"></i> Dados do Novo Produto
+                </div>
 
-            @* 3. IMAGEM *@
-            <div class="mb-3 border p-3 rounded bg-light">
-                <label class="form-label fw-bold">Imagem do Produto:</label>
-                <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
+                <div class="card-body p-4">
+                    <EditForm Model="produto" OnValidSubmit="GuardarProduto">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
 
-                @if (!string.IsNullOrEmpty(imagemPreview))
-                {
-                    <div class="mt-2">
-                        <p class="small text-success">Pré-visualização:</p>
-                        <img src="@imagemPreview" width="150" class="img-thumbnail" />
-                    </div>
-                }
-            </div>
+                        @* 1. ÁREA DE IMAGEM *@
+                        <div class="mb-4 text-center">
+                            <label class="form-label fw-bold d-block text-start">Imagem do Produto</label>
 
-            @* 4. CATEGORIA *@
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label>Categoria:</label>
-                    <InputSelect TValue="int?" class="form-select" @bind-Value="produto.CategoriaId">
-                        <option value="">-- Selecione uma Categoria --</option>
-                        @if (listaCategorias != null)
+                            <div class="upload-area p-3">
+                                @if (!string.IsNullOrEmpty(imagemPreview))
+                                {
+                                    <div class="mb-3 position-relative d-inline-block">
+                                        <img src="@imagemPreview" class="img-fluid rounded shadow-sm border"
+                                             style="max-height: 200px; object-fit: contain;" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="py-4 text-muted">
+                                        <i class="bi bi-camera fs-1 opacity-25"></i>
+                                        <p class="small">Nenhuma imagem selecionada</p>
+                                    </div>
+                                }
+
+                                <div class="mt-2">
+                                    <label class="btn btn-outline-dark btn-sm">
+                                        <i class="bi bi-upload me-2"></i> Carregar Foto
+                                        <InputFile OnChange="CarregarImagemPreview" class="d-none" accept="image/*" />
+                                    </label>
+                                    <div class="form-text small mt-1">Formatos: JPG, PNG (Max: 5MB)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @* 2. CAMPOS DE TEXTO *@
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Título</label>
+                                <InputText class="form-control" @bind-Value="produto.Titulo" placeholder="Ex: iPhone 15 Pro..." />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Descrição Detalhada</label>
+                                <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" placeholder="Detalhes, especificações..." />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Categoria</label>
+                                <InputSelect TValue="int?" class="form-select" @bind-Value="produto.CategoriaId">
+                                    <option value="">-- Selecione --</option>
+                                    @foreach (var cat in listaCategorias)
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Preço (€)</label>
+                                <InputNumber TValue="decimal" class="form-control" @bind-Value="produto.PrecoBase" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Stock</label>
+                                <InputNumber TValue="int" class="form-control" @bind-Value="produto.Stock" />
+                            </div>
+                        </div>
+
+                        @* 3. BOTÕES *@
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-gold py-3 rounded-pill shadow-sm" disabled="@estaAEnviar">
+                                @if (estaAEnviar)
+                                {
+                                    <span><span class="spinner-border spinner-border-sm me-2"></span> A Enviar...</span>
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-send-check me-2"></i> SUBMETER PARA APROVAÇÃO</span>
+                                }
+                            </button>
+                            <a href="/meus-produtos" class="btn btn-link text-muted text-decoration-none">
+                                Cancelar
+                            </a>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(mensagemErro))
                         {
-                            foreach (var cat in listaCategorias)
-                            {
-                                <option value="@cat.Id">@cat.Nome</option>
-                            }
+                            <div class="alert alert-danger mt-3 mb-0 rounded-3">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i> @mensagemErro
+                            </div>
                         }
-                    </InputSelect>
+
+                    </EditForm>
                 </div>
             </div>
-
-            @* 5. PREÇO BASE (Só isto! O Admin decide o resto) *@
-            <div class="row bg-light p-3 border rounded mb-3">
-                <div class="col-md-6 mb-3">
-                    <label>O teu Preço Base (€):</label>
-                    <InputNumber TValue="decimal" class="form-control" @bind-Value="produto.PrecoBase" />
-                    <small class="text-muted">Este é o valor que queres receber. O Admin adicionará a margem depois.</small>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label>Stock Inicial:</label>
-                    <InputNumber TValue="int" class="form-control" @bind-Value="produto.Stock" />
-                </div>
-
-                @* REMOVIDO: Checkbox "Ativo" (O Fornecedor não pode ativar ao criar) *@
-                <div class="col-12 mt-2">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-info-circle"></i> O produto ficará <strong>Pendente</strong> até ser aprovado por um Administrador.
-                    </div>
-                </div>
-            </div>
-
-            @* 6. BOTÕES *@
-            <button type="submit" class="btn btn-primary" disabled="@estaAEnviar">
-                @if (estaAEnviar)
-                {
-                    <span class="spinner-border spinner-border-sm me-2"></span> <span>A Enviar...</span>
-                }
-                else
-                {
-                    <span><i class="bi bi-send"></i> Submeter para Aprovação</span>
-                }
-            </button>
-            <a href="/meus-produtos" class="btn btn-secondary ms-2">Cancelar</a>
-            
-            @if (!string.IsNullOrEmpty(mensagemErro))
-            {
-                <div class="alert alert-danger mt-3">@mensagemErro</div>
-            }
-        </EditForm>
+        </div>
     </div>
 </div>
 
@@ -119,7 +192,7 @@
         {
             listaCategorias = await Http.GetFromJsonAsync<List<Categoria>>("api/produtos/categorias") ?? new List<Categoria>();
         }
-        catch (Exception)
+        catch
         {
             mensagemErro = "Não foi possível carregar as categorias.";
         }
@@ -128,18 +201,18 @@
     private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
     {
         var file = e.File;
-        long maxFileSize = 1024 * 1024 * 5; 
+        long maxFileSize = 1024 * 1024 * 10; // 10MB limite
         var format = "image/png";
 
         try
         {
-            var resizedImage = await file.RequestImageFileAsync(format, 400, 400);
+            var resizedImage = await file.RequestImageFileAsync(format, 500, 500);
             using var stream = resizedImage.OpenReadStream(maxFileSize);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
 
             imagemPreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
-            produto.ImagemUrl = imagemPreview; 
+            produto.ImagemUrl = imagemPreview;
         }
         catch (Exception ex)
         {
@@ -156,27 +229,21 @@
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
-            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                         ?? user.FindFirst("sub")?.Value;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                      ?? user.FindFirst("sub")?.Value;
 
             if (userId == null)
             {
-                mensagemErro = "Erro: Sessão inválida.";
+                mensagemErro = "Erro: Sessão inválida. Faz login novamente.";
                 estaAEnviar = false;
                 return;
             }
 
-            // 👇 LÓGICA DE NEGÓCIO CORRIGIDA SEGUNDO O ENUNCIADO
+            // Configuração Inicial do Produto
             produto.FornecedorId = userId;
             produto.Id = 0;
-
-            // 1. FORÇAR INATIVO (PENDENTE)
-            produto.Estado = EstadoProduto.Pausado;
-
-            // 2. FORÇAR MARGEM A ZERO (O Admin define depois)
-            produto.MargemLucro = 0; 
-            
-            // 3. PREÇO FINAL = PREÇO BASE (Temporariamente, até o Admin mexer)
+            produto.Estado = EstadoProduto.Pendente; // Força pendente
+            produto.MargemLucro = 0;
             produto.PrecoFinal = produto.PrecoBase;
 
             var response = await Http.PostAsJsonAsync("api/produtos", produto);
@@ -187,13 +254,9 @@
             }
             else
             {
-                // 👇 Vamos ler o que a API respondeu
                 var erroDetalhes = await response.Content.ReadAsStringAsync();
-                mensagemErro = $"A API rejeitou: {response.StatusCode} | Detalhes: {erroDetalhes}";
-    
-                // Escreve também na consola do browser (F12) para veres melhor
-                Console.WriteLine($"[ERRO API] Status: {response.StatusCode}");
-                Console.WriteLine($"[ERRO API] Body: {erroDetalhes}");
+                mensagemErro = $"Erro ao criar produto. A API rejeitou o pedido.";
+                Console.WriteLine($"[API ERRO]: {erroDetalhes}");
             }
         }
         catch (Exception ex)

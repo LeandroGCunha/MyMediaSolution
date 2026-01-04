@@ -89,12 +89,9 @@
 
                     @* --- COLUNA ESQUERDA: IMAGEM --- *@
                     <div class="col-md-5 bg-light d-flex align-items-center justify-content-center p-4 position-relative">
-
-                        @* Imagem do Produto *@
                         @if (!string.IsNullOrEmpty(produto.ImagemUrl))
                         {
-                            <img src="@GetFullImageUrl(produto.ImagemUrl)"
-                                 class="img-fluid rounded-3 shadow-sm"
+                            <img src="@GetFullImageUrl(produto.ImagemUrl)" class="img-fluid rounded-3 shadow-sm"
                                  style="max-height: 450px; width: 100%; object-fit: contain; mix-blend-mode: multiply;"
                                  alt="@produto.Titulo" />
                         }
@@ -120,19 +117,40 @@
                             </div>
                         }
                     </div>
-                    @* 👆 IMPORTANTE: Esta div fecha a col-md-5 *@
 
                     @* --- COLUNA DIREITA: DETALHES --- *@
                     <div class="col-md-7 p-4 p-md-5 d-flex flex-column">
 
                         <div class="mb-auto">
-                            @* Categoria (Estilo Preto e Amarelo) *@
+                            @* Categoria *@
                             <span class="badge rounded-pill badge-category mb-2">
                                 @(produto.Categoria?.Nome?.ToUpper() ?? "GERAL")
                             </span>
 
                             @* Título *@
-                            <h2 class="fw-bold text-dark display-6 mb-3">@produto.Titulo</h2>
+                            <h2 class="fw-bold text-dark display-6 mb-2">@produto.Titulo</h2>
+
+                            @* 👇 MOSTRAR O VENDEDOR (NOVA SECÇÃO) 👇 *@
+                            <div class="d-flex align-items-center mb-3">
+                                @if (produto.Fornecedor != null)
+                                {
+                                    // É um Vendedor Parceiro
+                                    <span class="text-muted small me-2">Vendido por:</span>
+                                    <span class="badge bg-light text-dark border">
+                                        <i class="bi bi-person-check-fill text-primary me-1"></i>
+                                        @produto.Fornecedor.NomeCompleto
+                                    </span>
+                                }
+                                else
+                                {
+                                    // É a Loja (Admin)
+                                    <span class="text-muted small me-2">Vendido e enviado por:</span>
+                                    <span class="badge bg-dark text-warning border border-warning">
+                                        <i class="bi bi-patch-check-fill me-1"></i>
+                                        MyMedia Oficial
+                                    </span>
+                                }
+                            </div>
 
                             @* Preço *@
                             <h3 class="price-display display-5 mb-4">
@@ -156,7 +174,6 @@
                             </div>
 
                             <div class="d-grid gap-2 d-md-flex">
-                                @* Botão Principal Amarelo *@
                                 <button class="btn btn-cart-premium btn-lg flex-grow-1 py-3 rounded-3 shadow-sm"
                                         @onclick="AdicionarAoCarrinho"
                                         disabled="@(produto.Stock <= 0)">
@@ -170,7 +187,6 @@
                                     }
                                 </button>
 
-                                @* Botão Secundário *@
                                 <button class="btn btn-back-dark btn-lg px-4 rounded-3" @onclick="Voltar" title="Voltar">
                                     <i class="bi bi-arrow-return-left"></i>
                                 </button>
@@ -178,17 +194,11 @@
                         </div>
 
                     </div>
-                    @* 👆 Fecha col-md-7 *@
-
                 </div>
-                @* 👆 Fecha row *@
             </div>
-            @* 👆 Fecha card-body *@
         </div>
-        @* 👆 Fecha card *@
     }
 </div>
-@* 👆 Fecha container *@
 
 @code {
     [Parameter]
