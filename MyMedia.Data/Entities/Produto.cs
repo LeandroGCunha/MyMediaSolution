@@ -26,7 +26,6 @@ namespace MyMedia.Data.Entities
         public string? ImagemUrl { get; set; }
 
         public int Stock { get; set; }
-        public bool IsAtivo { get; set; } = false;
 
         // Relacionamentos
         public int? CategoriaId { get; set; }
@@ -34,5 +33,7 @@ namespace MyMedia.Data.Entities
 
         public string? FornecedorId { get; set; }
         public virtual ApplicationUser? Fornecedor { get; set; }
+
+        public EstadoProduto Estado { get; set; } = EstadoProduto.Pendente;
     }
 }

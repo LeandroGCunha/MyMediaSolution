@@ -1,53 +1,170 @@
-﻿
-<iv class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">MyMedia.Admin</a>
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+@* --- ESTILOS DO MENU ADMIN --- *@
+<style>
+    /* Fundo da Barra Lateral */
+    .admin-sidebar {
+        background: #111; /* Preto profundo */
+        background: linear-gradient(180deg, #111 0%, #1a1a1a 100%);
+        min-height: 100vh;
+        border-right: 1px solid #333;
+    }
+
+    /* Cabeçalho da Marca */
+    .admin-brand {
+        background-color: #000;
+        border-bottom: 1px solid #333;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    /* Títulos das Secções (ex: GESTÃO, SISTEMA) */
+    .sidebar-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        font-weight: bold;
+        padding: 1.5rem 1rem 0.5rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* Links de Navegação */
+    .nav-item .nav-link {
+        color: #adb5bd; /* Cinza claro */
+        padding: 0.8rem 1rem;
+        border-radius: 6px;
+        margin: 0 10px;
+        transition: all 0.2s;
+        font-size: 0.95rem;
+    }
+
+        /* Ícones */
+        .nav-item .nav-link i {
+            margin-right: 10px;
+            color: #6c757d;
+            transition: 0.2s;
+        }
+
+        /* Hover (Passar o rato) */
+        .nav-item .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255,255,255,0.05);
+        }
+
+            .nav-item .nav-link:hover i {
+                color: #ffc107; /* Ícone fica amarelo */
+            }
+
+        /* Link Ativo (Página atual) */
+        .nav-item .nav-link.active {
+            color: #ffc107; /* Texto Amarelo */
+            background-color: rgba(255, 193, 7, 0.1); /* Fundo amarelo transparente */
+            font-weight: 600;
+            border-left: 3px solid #ffc107; /* Barra amarela à esquerda */
+        }
+
+            .nav-item .nav-link.active i {
+                color: #ffc107;
+            }
+</style>
+
+<div class="admin-sidebar">
+
+    @* 1. CABEÇALHO DA MARCA *@
+    <div class="admin-brand">
+        <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+        <div>
+            <div style="line-height: 1;">MyMedia</div>
+            <small class="text-muted" style="font-size: 0.65rem; letter-spacing: 2px;">ADMIN PANEL</small>
+        </div>
     </div>
-</iv>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    @* Botão Hamburguer (Só aparece em mobile) *@
+    <button title="Navigation menu" class="navbar-toggler d-md-none border-0 p-3 text-white" @onclick="ToggleNavMenu">
+        <i class="bi bi-list fs-2"></i>
+    </button>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
+    @* 2. LINKS DE NAVEGAÇÃO *@
+    <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+        <nav class="flex-column pb-4">
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                @* Este é o ícone da casa oficial do Bootstrap *@
-                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+            @* --- SECÇÃO: PRINCIPAL --- *@
+            <div class="nav-item mt-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="categorias">
-                <span class="bi bi-tags-fill" aria-hidden="true"></span> Categorias
-            </NavLink>
-        </div>
+            @* --- SECÇÃO: LOJA (CATÁLOGO) --- *@
+            <div class="sidebar-heading">Catálogo</div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="produtos">
-                <span class="bi bi-box-seam-fill" aria-hidden="true"></span> Produtos
-            </NavLink>
-        </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="produtos">
+                    <i class="bi bi-box-seam"></i> Produtos
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="categorias">
+                    <i class="bi bi-tags"></i> Categorias
+                </NavLink>
+            </div>
 
-        <AuthorizeView Roles="Administrador, Funcionario">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="utilizadores">
-                        <span class="bi bi-people-fill" aria-hidden="true"></span> Utilizadores
-                    </NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
+            @* --- SECÇÃO: VENDAS (Apenas Autorizados) --- *@
+            <AuthorizeView Roles="Administrador, Funcionario">
+                <Authorized>
+                    <div class="sidebar-heading">Vendas</div>
 
-        <AuthorizeView Roles="Administrador, Funcionario">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="encomendas">
-                        <span class="bi bi-clipboard-check-fill" aria-hidden="true"></span> Encomendas
-                    </NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="encomendas">
+                            <i class="bi bi-cart-check"></i> Encomendas
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
 
-    </nav>
+            @* --- SECÇÃO: SISTEMA (Apenas Admin) --- *@
+            <AuthorizeView Roles="Administrador">
+                <Authorized>
+                    <div class="sidebar-heading">Sistema</div>
+
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="utilizadores">
+                            <i class="bi bi-people"></i> Utilizadores
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="relatorios">
+                            <i class="bi bi-bar-chart-line"></i> Relatórios
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            @* --- LOGOUT (Fundo da barra) --- *@
+            <div class="mt-5 border-top border-secondary pt-3 mx-3">
+                <a class="nav-link text-danger d-flex align-items-center" href="logout">
+                    <i class="bi bi-box-arrow-right me-2"></i> Sair
+                </a>
+            </div>
+
+        </nav>
+    </div>
 </div>
+
+@code {
+    // Lógica para abrir/fechar menu em Mobile
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse d-md-block" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

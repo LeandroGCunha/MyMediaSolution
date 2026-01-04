@@ -1,9 +1,14 @@
 ﻿@page "/produtos/criar"
 @attribute [Authorize(Roles = "Administrador, Funcionario")]
+
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
 @using System.IO
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Hosting
+
 @inject ApplicationDbContext Context
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
@@ -83,13 +88,14 @@
                     </p>
                 </div>
 
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" id="flexSwitchCheckChecked" />
-                        <label class="form-check-label fw-bold" for="flexSwitchCheckChecked">
-                            Produto Ativo e Visível
-                        </label>
-                    </div>
+                @* 👇 CORREÇÃO: Substituição do Checkbox IsAtivo pelo Select de Estado *@
+                <div class="col-12 mt-3">
+                    <label class="fw-bold">Estado Inicial:</label>
+                    <InputSelect class="form-select" @bind-Value="produto.Estado">
+                        <option value="@EstadoProduto.Ativo">🟢 Ativo (Visível na Loja)</option>
+                        <option value="@EstadoProduto.Pendente">🟡 Pendente (Rascunho)</option>
+                        <option value="@EstadoProduto.Pausado">⚪ Pausado</option>
+                    </InputSelect>
                 </div>
             </div>
 
@@ -110,8 +116,11 @@
     protected override async Task OnInitializedAsync()
     {
         listaCategorias = await Context.Categorias.AsNoTracking().ToListAsync();
-        produto.IsAtivo = true;
-        produto.MargemLucro = 0.5m; // Valor inicial sugerido
+
+        // 👇 CORREÇÃO: Inicializar com Enum (Por defeito Ativo para Admin)
+        produto.Estado = EstadoProduto.Ativo;
+
+        produto.MargemLucro = 0.5m;
     }
 
     // Lógica da Pré-visualização (Segura)
@@ -142,21 +151,22 @@
         // FASE 1: Preparar dados básicos
         produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
 
-        // ⚠️ CORREÇÃO CRUCIAL 1: Forçar ID a 0 para evitar erro "Identity Insert"
+        // Forçar ID a 0 para evitar erro "Identity Insert"
         produto.Id = 0;
+
+        // Se for o Admin a criar, não tem FornecedorId (fica NULL)
+        produto.FornecedorId = null;
 
         // FASE 2: Gravar na BD PRIMEIRO (Para gerar o ID)
         Context.Produtos.Add(produto);
         await Context.SaveChangesAsync();
-
-        // AGORA JÁ TEMOS UM ID! (ex: produto.Id agora é 15)
 
         // FASE 3: Se houver imagem, gravamos na API
         if (ficheiroSelecionado != null)
         {
             try
             {
-                // ⚠️ CORREÇÃO CRUCIAL 2: Gravar na pasta da API
+                // Gravar na pasta da API
                 var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
                 var pastaImagensApi = Path.Combine(pastaApi, "imagens");
 
@@ -180,7 +190,6 @@
             catch (Exception ex)
             {
                 Console.WriteLine("Erro ao gravar imagem: " + ex.Message);
-                // Não paramos o processo se a imagem falhar, o produto já foi criado.
             }
         }
 

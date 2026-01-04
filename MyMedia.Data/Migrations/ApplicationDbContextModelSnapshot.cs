@@ -202,6 +202,9 @@ namespace MyMedia.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -344,14 +347,14 @@ namespace MyMedia.Data.Migrations
                     b.Property<string>("Descricao")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Estado")
+                        .HasColumnType("int");
+
                     b.Property<string>("FornecedorId")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("ImagemUrl")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsAtivo")
-                        .HasColumnType("bit");
 
                     b.Property<decimal>("MargemLucro")
                         .HasColumnType("decimal(18,2)");

@@ -12,114 +12,202 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
-<h3>✏️ Editar Produto</h3>
+@* --- ESTILOS PREMIUM (Preto/Amarelo) --- *@
+<style>
+    .text-gold {
+        color: #ffc107 !important;
+    }
 
-@if (produto == null)
-{
-    <p>A carregar dados...</p>
-}
-else
-{
-    <div class="row">
-        <div class="col-md-8">
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <strong>Atenção:</strong> Ao guardar qualquer alteração, o produto voltará ao estado
-                <strong>Pendente</strong> e terá de ser aprovado novamente pelo Administrador.
-            </div>
+    /* Botão Principal Dourado */
+    .btn-gold {
+        background-color: #ffc107;
+        color: #000;
+        font-weight: bold;
+        border: none;
+        transition: 0.2s;
+    }
 
-            <EditForm Model="produto" OnValidSubmit="AtualizarProduto">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
+        .btn-gold:hover {
+            background-color: #e0a800;
+            transform: scale(1.02);
+        }
 
-                @* 1. TÍTULO *@
-                <div class="mb-3">
-                    <label>Título:</label>
-                    <InputText class="form-control" @bind-Value="produto.Titulo" />
-                </div>
+    /* Inputs Modernos */
+    .form-control:focus, .form-select:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    }
 
-                @* 2. DESCRIÇÃO *@
-                <div class="mb-3">
-                    <label>Descrição:</label>
-                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" />
-                </div>
+    /* Área de Upload */
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        transition: 0.3s;
+    }
 
-                @* 3. IMAGEM *@
-                <div class="mb-3 border p-3 rounded bg-light">
-                    <label class="fw-bold">Imagem Atual:</label>
-                    @if (!string.IsNullOrEmpty(imagemPreview))
-                    {
-                        <div class="mb-2">
-                            @* Mostra a imagem nova ou a antiga *@
-                            <img src="@imagemPreview" width="150" class="img-thumbnail" />
-                        </div>
-                    }
+        .upload-area:hover {
+            border-color: #ffc107;
+            background-color: #fffbf0; /* Amarelo muito clarinho */
+        }
+</style>
 
-                    <label class="form-label mt-2">Alterar Imagem (Opcional):</label>
-                    <InputFile OnChange="CarregarNovaImagem" class="form-control" accept=".jpg,.jpeg,.png" />
-                </div>
+<div class="container mt-4 mb-5">
 
-                @* 4. CATEGORIA *@
-                <div class="mb-3">
-                    <label>Categoria:</label>
-                    <InputSelect TValue="int?" class="form-select" @bind-Value="produto.CategoriaId">
-                        <option value="">-- Selecione --</option>
-                        @foreach (var cat in listaCategorias)
-                        {
-                            <option value="@cat.Id">@cat.Nome</option>
-                        }
-                    </InputSelect>
-                </div>
-
-                @* 5. PREÇO E STOCK *@
-                <div class="row bg-light p-3 border rounded mb-3">
-                    <div class="col-md-6 mb-3">
-                        <label>Preço Base (€):</label>
-                        <InputNumber TValue="decimal" class="form-control" @bind-Value="produto.PrecoBase" />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Stock:</label>
-                        <InputNumber TValue="int" class="form-control" @bind-Value="produto.Stock" />
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary">💾 Guardar Alterações</button>
-                <a href="/meus-produtos" class="btn btn-secondary ms-2">Cancelar</a>
-            </EditForm>
-        </div>
+    <div class="d-flex align-items-center mb-4">
+        <a href="/meus-produtos" class="btn btn-outline-dark rounded-circle me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h3 class="fw-bold m-0">Editar Produto</h3>
     </div>
-}
+
+    @if (produto == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-warning" role="status"></div>
+            <p class="mt-2 text-muted">A carregar dados...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+
+                @* Aviso de Pendente *@
+                <div class="alert alert-warning border-warning d-flex align-items-center rounded-3 shadow-sm mb-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                    <div>
+                        <strong>Atenção:</strong> Ao guardar alterações, o produto voltará ao estado
+                        <span class="badge bg-dark text-warning">Pendente</span> para nova aprovação.
+                    </div>
+                </div>
+
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                    <div class="card-header bg-dark text-white py-3">
+                        <i class="bi bi-pencil-square text-gold me-2"></i> Dados do Produto
+                    </div>
+
+                    <div class="card-body p-4">
+                        <EditForm Model="produto" OnValidSubmit="AtualizarProduto">
+                            <DataAnnotationsValidator />
+
+                            @* 1. IMAGEM (CORRIGIDO PARA ANDROID) *@
+                            <div class="mb-4 text-center">
+                                <label class="form-label fw-bold d-block text-start">Imagem do Produto</label>
+
+                                <div class="upload-area p-3">
+                                    @if (!string.IsNullOrEmpty(imagemPreview))
+                                    {
+                                        <div class="mb-3 position-relative d-inline-block">
+                                            <img src="@imagemPreview" class="img-fluid rounded shadow-sm border"
+                                                 style="max-height: 200px; object-fit: contain;" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="py-4 text-muted">
+                                            <i class="bi bi-camera fs-1 opacity-25"></i>
+                                            <p class="small">Sem imagem definida</p>
+                                        </div>
+                                    }
+
+                                    @* ⚠️ FIX CRÍTICO ANDROID: 
+                                       Usei accept="image/*" em vez de extensões específicas.
+                                       Isto força o Android a abrir a Galeria corretamente.
+                                    *@
+                                    <div class="mt-2">
+                                        <label class="btn btn-outline-dark btn-sm">
+                                            <i class="bi bi-upload me-2"></i> Escolher Nova Foto
+                                            <InputFile OnChange="CarregarNovaImagem" class="d-none" accept="image/*" />
+                                        </label>
+                                        <div class="form-text small mt-1">Formatos: JPG, PNG (Max: 5MB)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* 2. CAMPOS DE TEXTO *@
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Título</label>
+                                    <InputText class="form-control" @bind-Value="produto.Titulo" placeholder="Ex: Câmara Sony A7..." />
+                                    <ValidationMessage For="@(() => produto.Titulo)" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Descrição</label>
+                                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" placeholder="Detalhes do produto..." />
+                                    <ValidationMessage For="@(() => produto.Descricao)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Categoria</label>
+                                    <InputSelect TValue="int?" class="form-select" @bind-Value="produto.CategoriaId">
+                                        <option value="">-- Selecione --</option>
+                                        @foreach (var cat in listaCategorias)
+                                        {
+                                            <option value="@cat.Id">@cat.Nome</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Preço (€)</label>
+                                    <InputNumber TValue="decimal" class="form-control" @bind-Value="produto.PrecoBase" />
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Stock</label>
+                                    <InputNumber TValue="int" class="form-control" @bind-Value="produto.Stock" />
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-5">
+                                <button type="submit" class="btn btn-gold py-3 rounded-pill shadow-sm">
+                                    💾 GUARDAR ALTERAÇÕES
+                                </button>
+                                <a href="/meus-produtos" class="btn btn-link text-muted text-decoration-none">
+                                    Cancelar
+                                </a>
+                            </div>
+
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
 
 @code {
-    [Parameter] public int Id { get; set; } // Recebe o ID da URL
+    [Parameter] public int Id { get; set; }
 
-    private Produto? produto; // Começa a null enquanto carrega
+    private Produto? produto;
     private List<Categoria> listaCategorias = new();
     private string? imagemPreview;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Carregar Categorias
-        listaCategorias = await Http.GetFromJsonAsync<List<Categoria>>("api/produtos/categorias") ?? new();
-
-        // 2. Carregar o Produto que queremos editar
         try
         {
+            // 1. Carregar Categorias
+            listaCategorias = await Http.GetFromJsonAsync<List<Categoria>>("api/produtos/categorias") ?? new();
+
+            // 2. Carregar o Produto
             produto = await Http.GetFromJsonAsync<Produto>($"api/produtos/{Id}");
 
-            // Configurar a preview da imagem atual (se existir)
+            // 3. Preparar visualização da imagem existente
             if (produto != null && !string.IsNullOrEmpty(produto.ImagemUrl))
             {
-                // Se for um caminho relativo, adiciona o endereço da API para veres a foto
+                // Verifica se é URL completa ou relativa
                 imagemPreview = produto.ImagemUrl.StartsWith("http")
                     ? produto.ImagemUrl
                     : $"{Http.BaseAddress}api/{produto.ImagemUrl}".Replace("api/imagens", "imagens");
-                // Nota: O truque do replace é só para garantir que o link fica certo dependendo da tua configuração
             }
         }
         catch
         {
-            Navigation.NavigateTo("/meus-produtos"); // Se der erro, volta para a lista
+            // Se falhar (ex: ID não existe), volta à lista
+            Navigation.NavigateTo("/meus-produtos");
         }
     }
 
@@ -127,36 +215,54 @@ else
     {
         var file = e.File;
         var format = "image/png";
-        var resized = await file.RequestImageFileAsync(format, 400, 400);
 
-        using var stream = resized.OpenReadStream(1024 * 1024 * 5);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
+        // ⚠️ IMPORTANTE: Aumentei o limite para 30MB para não crashar com fotos de telemóvel
+        long maxFileSize = 1024 * 1024 * 30;
 
-        // Atualiza a preview e o objeto produto com a nova Base64
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        imagemPreview = $"data:{format};base64,{base64}";
-        produto.ImagemUrl = imagemPreview;
+        try
+        {
+            // O redimensionamento acontece aqui (500x500px)
+            var resized = await file.RequestImageFileAsync(format, 500, 500);
+
+            using var stream = resized.OpenReadStream(maxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var base64 = Convert.ToBase64String(ms.ToArray());
+
+            // Atualiza preview e o objeto
+            imagemPreview = $"data:{format};base64,{base64}";
+            produto.ImagemUrl = imagemPreview;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar imagem: {ex.Message}");
+        }
     }
 
     private async Task AtualizarProduto()
     {
         if (produto == null) return;
 
-        // O fornecedor NÃO pode definir IsAtivo a true.
-        // A API vai forçar 'false' de qualquer forma, mas podemos pôr aqui também.
-        produto.IsAtivo = false;
+        // Força estado pendente (Regra de negócio)
+        produto.Estado = EstadoProduto.Pendente;
 
-        // Enviar pedido PUT (Atualizar)
-        var response = await Http.PutAsJsonAsync($"api/produtos/{Id}", produto);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            Navigation.NavigateTo("/meus-produtos");
+            var response = await Http.PutAsJsonAsync($"api/produtos/{Id}", produto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/meus-produtos");
+            }
+            else
+            {
+                Console.WriteLine("Erro ao guardar na API");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            // Opcional: Tratar erro
+            Console.WriteLine($"Erro de rede: {ex.Message}");
         }
     }
 }

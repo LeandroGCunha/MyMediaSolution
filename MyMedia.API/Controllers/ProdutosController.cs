@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MyMedia.Data;
 using MyMedia.Data.Entities;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization; 
+using Microsoft.AspNetCore.Authorization;
 
 namespace MyMedia.API.Controllers
 {
@@ -22,8 +22,6 @@ namespace MyMedia.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Produto>>> GetProdutos()
         {
-            // Retorna a lista de produtos, incluindo a categoria
-
             return await _context.Produtos
                 .Include(p => p.Categoria)
                 .ToListAsync();
@@ -44,23 +42,20 @@ namespace MyMedia.API.Controllers
 
             return produto;
         }
+
         [HttpGet("categorias")]
         public async Task<ActionResult<List<Categoria>>> GetCategorias()
         {
-
-            // Carrega todas as categorias da BD
             return await _context.Categorias.ToListAsync();
         }
 
         [HttpGet("por-fornecedor/{userId}")]
         public async Task<ActionResult<List<Produto>>> GetProdutosDoFornecedor(string userId)
         {
-
-
             var produtos = await _context.Produtos
-                .Include(p => p.Fornecedor) 
-                .Include(p => p.Categoria)  
-                .Where(p => p.FornecedorId == userId) 
+                .Include(p => p.Fornecedor)
+                .Include(p => p.Categoria)
+                .Where(p => p.FornecedorId == userId)
                 .ToListAsync();
 
             return Ok(produtos);
@@ -69,24 +64,20 @@ namespace MyMedia.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Produto>> PostProduto(Produto produto)
         {
-            // 1. SEPARAR A IMAGEM (TRUQUE)
-            // Guardamos a string gigante numa variável temporária e limpamos do produto
-            // para não gravar lixo na base de dados no primeiro passo.
             string? base64Imagem = null;
 
             if (!string.IsNullOrEmpty(produto.ImagemUrl) && produto.ImagemUrl.Contains("base64"))
             {
                 base64Imagem = produto.ImagemUrl;
-                produto.ImagemUrl = null; // Deixa null por agora
+                produto.ImagemUrl = null;
             }
 
-            // 2. PRIMEIRO SALVAMENTO (Para Gerar o ID)
+            // 1. CORREÇÃO: Ao criar, define o estado como PENDENTE (Enum)
+            produto.Estado = EstadoProduto.Pendente;
+
             _context.Produtos.Add(produto);
             await _context.SaveChangesAsync();
 
-            // ✨ MAGIA: Agora o produto.Id já existe! (ex: 5)
-
-            // 3. GRAVAR A IMAGEM COM O NOME DO ID
             if (base64Imagem != null)
             {
                 try
@@ -96,75 +87,107 @@ namespace MyMedia.API.Controllers
 
                     if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
 
-                    // A. Limpar o Base64
                     var partes = base64Imagem.Split(',');
                     var base64Limpa = partes.Length > 1 ? partes[1] : partes[0];
                     var bytesImagem = Convert.FromBase64String(base64Limpa);
 
-                    // B. Criar o nome usando o ID recém-criado
-                    // O ficheiro vai chamar-se "5.png" ou "102.png"
                     var nomeFicheiro = $"{produto.Id}.png";
                     var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
 
-                    // C. Gravar no disco
                     await System.IO.File.WriteAllBytesAsync(caminhoCompleto, bytesImagem);
 
-                    // D. Atualizar o caminho no objeto produto
                     produto.ImagemUrl = $"imagens/{nomeFicheiro}";
 
-                    // 4. SEGUNDO SALVAMENTO (Atualizar o link na BD)
                     _context.Produtos.Update(produto);
                     await _context.SaveChangesAsync();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERRO IMAGEM] Não consegui gravar a imagem do ID {produto.Id}: {ex.Message}");
-                    // Não fazemos throw para não cancelar a criação do produto, mas ele fica sem foto.
+                    Console.WriteLine($"[ERRO IMAGEM] {ex.Message}");
                 }
             }
 
             return CreatedAtAction("GetProduto", new { id = produto.Id }, produto);
         }
 
-       
+        // PUT: api/produtos/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduto(int id, Produto produto)
+        public async Task<IActionResult> PutProduto(int id, Produto produtoAtualizado)
         {
-            if (id != produto.Id) return BadRequest("O ID não coincide.");
+            if (id != produtoAtualizado.Id) return BadRequest("O ID não coincide.");
 
-            // 1. REGRA DE NEGÓCIO BLINDADA
-            // Em vez de confiar no "UserRole" (que pode vir vazio),
-            // forçamos o produto a ficar Pendente sempre que é editado.
-            produto.IsAtivo = false;
+            // 1. Buscar o original (AsNoTracking para não bloquear)
+            var produtoOriginal = await _context.Produtos
+                                        .AsNoTracking()
+                                        .FirstOrDefaultAsync(p => p.Id == id);
 
-            // 2. LÓGICA DE IMAGEM (QUE FALTAVA!) 📸
-            // Se vier Base64, grava no disco, senão rebenta a BD.
-            if (!string.IsNullOrEmpty(produto.ImagemUrl) && produto.ImagemUrl.Contains("base64"))
+            if (produtoOriginal == null) return NotFound();
+
+            // 2. DETETAR ALTERAÇÕES CRÍTICAS
+            bool mudouCoisaImportante =
+                produtoOriginal.Titulo != produtoAtualizado.Titulo ||
+                produtoOriginal.PrecoBase != produtoAtualizado.PrecoBase ||
+                produtoOriginal.Descricao != produtoAtualizado.Descricao ||
+                produtoOriginal.CategoriaId != produtoAtualizado.CategoriaId ||
+                (!string.IsNullOrEmpty(produtoAtualizado.ImagemUrl) && produtoAtualizado.ImagemUrl.Contains("base64"));
+
+            // 3. MÁQUINA DE ESTADOS (Lógica com Enums)
+            if (mudouCoisaImportante)
+            {
+                // REGRA 1: Se mudou dados críticos, volta para PENDENTE (Enum)
+                produtoAtualizado.Estado = EstadoProduto.Pendente;
+            }
+            else
+            {
+                // REGRA 2: Se não mudou dados (só mudou stock ou estado)...
+
+                // Sub-regra: Se estava Pendente ou Rejeitado, o Fornecedor NÃO pode ativar sozinho.
+                // Verifica se ele está a tentar passar para "Ativo".
+                if ((produtoOriginal.Estado == EstadoProduto.Pendente || produtoOriginal.Estado == EstadoProduto.Rejeitado)
+                    && produtoAtualizado.Estado == EstadoProduto.Ativo)
+                {
+                    // Bloqueia: Mantém o estado original (não deixa ativar)
+                    produtoAtualizado.Estado = produtoOriginal.Estado;
+                }
+
+                // Se estava "Ativo" e passou para "Pausado" -> OK
+                // Se estava "Pausado" e passou para "Ativo" -> OK (porque já tinha sido aprovado antes)
+            }
+
+            // 4. Lógica de Imagem
+            if (!string.IsNullOrEmpty(produtoAtualizado.ImagemUrl) && produtoAtualizado.ImagemUrl.Contains("base64"))
             {
                 try
                 {
                     var pastaImagens = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "imagens");
                     if (!Directory.Exists(pastaImagens)) Directory.CreateDirectory(pastaImagens);
 
-                    var partes = produto.ImagemUrl.Split(',');
+                    var partes = produtoAtualizado.ImagemUrl.Split(',');
                     var base64Limpa = partes.Length > 1 ? partes[1] : partes[0];
                     var bytesImagem = Convert.FromBase64String(base64Limpa);
 
-                    // Usa o mesmo ID para substituir a imagem velha
-                    var nomeFicheiro = $"{produto.Id}.png";
+                    var nomeFicheiro = $"{produtoAtualizado.Id}.png";
                     var caminhoCompleto = Path.Combine(pastaImagens, nomeFicheiro);
 
                     await System.IO.File.WriteAllBytesAsync(caminhoCompleto, bytesImagem);
 
-                    produto.ImagemUrl = $"imagens/{nomeFicheiro}";
+                    produtoAtualizado.ImagemUrl = $"imagens/{nomeFicheiro}";
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ERRO IMAGEM PUT] {ex.Message}");
                 }
             }
+            else
+            {
+                // Mantém a imagem antiga se não enviou nova
+                if (string.IsNullOrEmpty(produtoAtualizado.ImagemUrl))
+                {
+                    produtoAtualizado.ImagemUrl = produtoOriginal.ImagemUrl;
+                }
+            }
 
-            _context.Entry(produto).State = EntityState.Modified;
+            _context.Entry(produtoAtualizado).State = EntityState.Modified;
 
             try
             {
@@ -183,27 +206,19 @@ namespace MyMedia.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduto(int id)
         {
-            // 1. Procurar o produto
             var produto = await _context.Produtos.FindAsync(id);
-            if (produto == null)
-            {
-                return NotFound();
-            }
+            if (produto == null) return NotFound();
 
-            // 2. SEGURANÇA: Verificar se o Fornecedor é o dono do produto
-            // Se for um "Fornecedor", só pode apagar se o produto for dele.
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
             if (userRole == "Fornecedor" && produto.FornecedorId != userId)
             {
-                return Forbid(); // 403 - Proibido (Não é teu!)
+                return Forbid();
             }
 
-            // 3. Tentar Apagar
             try
             {
-                // Apagar a imagem do disco (Opcional, mas boa prática para não deixar lixo)
                 if (!string.IsNullOrEmpty(produto.ImagemUrl))
                 {
                     var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", produto.ImagemUrl);
@@ -215,12 +230,10 @@ namespace MyMedia.API.Controllers
             }
             catch (Exception)
             {
-                // 4. ERRO DE CHAVE ESTRANGEIRA
-                // Se o produto já estiver numa Encomenda, a BD lança erro. Nós apanhamos e avisamos.
                 return BadRequest("Não é possível apagar este produto porque ele já tem vendas ou registos associados.");
             }
 
-            return NoContent(); // 204 - Sucesso (sem conteúdo)
+            return NoContent();
         }
     }
 }

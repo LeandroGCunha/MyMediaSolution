@@ -5,74 +5,163 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white text-center">
-                    <h3>📝 Criar Conta</h3>
-                </div>
-                <div class="card-body">
+<style>
+    /* Gradiente apenas para o botão de registo */
+    .btn-gradient-success {
+        background: linear-gradient(to right, #42e695, #3bb2b8);
+        border: none;
+        color: white;
+        transition: 0.2s;
+    }
 
-                    <EditForm Model="@RegisterModel" OnValidSubmit="HandleRegistration">
-                        <DataAnnotationsValidator />
+        .btn-gradient-success:hover {
+            transform: scale(1.02);
+            color: white;
+            background: linear-gradient(to right, #3bb2b8, #42e695);
+        }
 
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <InputText @bind-Value="RegisterModel.Email" class="form-control" placeholder="exemplo@email.com" />
-                            <ValidationMessage For="@(() => RegisterModel.Email)" />
+    .form-floating > label {
+        color: #6c757d;
+    }
+
+    /* Toggle Personalizado (Mantido pois é funcional e bonito) */
+    .role-selector {
+        background-color: #f8f9fa;
+        border-radius: 50px;
+        position: relative;
+        cursor: pointer;
+        border: 1px solid #dee2e6;
+        height: 46px;
+        display: flex;
+        align-items: center;
+    }
+
+    .role-option {
+        padding: 0 10px;
+        z-index: 2;
+        transition: color 0.3s;
+        font-weight: 600;
+        text-align: center;
+        width: 50%;
+        line-height: 46px;
+    }
+
+    .role-bg {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        height: calc(100% - 8px);
+        width: calc(50% - 4px);
+        background: white;
+        border-radius: 40px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .role-active {
+        color: #198754;
+    }
+
+    .role-inactive {
+        color: #adb5bd;
+    }
+</style>
+
+@* Fundo cinza claro simples *@
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-light py-5">
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-5">
+
+                @* Cartão branco sólido com sombra *@
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden bg-white">
+                    <div class="card-body p-4 p-md-5">
+
+                        <div class="text-center mb-4">
+                            <h2 class="fw-bold text-dark">Criar Conta</h2>
+                            <p class="text-muted">Junte-se à MyMedia Store</p>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Nome Completo</label>
-                            <InputText @bind-Value="RegisterModel.NomeCompleto" class="form-control" placeholder="O teu nome" />
-                            <ValidationMessage For="@(() => RegisterModel.NomeCompleto)" />
-                        </div>
+                        <EditForm Model="@RegisterModel" OnValidSubmit="HandleRegistration">
+                            <DataAnnotationsValidator />
 
-                        <div class="mb-3">
-                            <label class="form-label">NIF</label>
-                            <InputText @bind-Value="RegisterModel.NIF" class="form-control" placeholder="123456789" />
-                            <ValidationMessage For="@(() => RegisterModel.NIF)" />
-                        </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-floating">
+                                        <InputText @bind-Value="RegisterModel.NomeCompleto" class="form-control rounded-3" id="nome" placeholder="Nome" />
+                                        <label for="nome"><i class="bi bi-person me-2"></i>Nome Completo</label>
+                                        <ValidationMessage For="@(() => RegisterModel.NomeCompleto)" />
+                                    </div>
+                                </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Palavra-Passe</label>
-                            <InputText @bind-Value="RegisterModel.Password" type="password" class="form-control" placeholder="******" />
-                            <ValidationMessage For="@(() => RegisterModel.Password)" />
-                            <small class="text-muted" style="font-size: 0.7em">Mínimo 6 caracteres, 1 maiúscula, 1 número.</small>
-                        </div>
+                                <div class="col-12">
+                                    <div class="form-floating">
+                                        <InputText @bind-Value="RegisterModel.Email" class="form-control rounded-3" id="email" placeholder="Email" />
+                                        <label for="email"><i class="bi bi-envelope me-2"></i>Email</label>
+                                        <ValidationMessage For="@(() => RegisterModel.Email)" />
+                                    </div>
+                                </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Confirmar Palavra-Passe</label>
-                            <InputText @bind-Value="RegisterModel.ConfirmPassword" type="password" class="form-control" placeholder="******" />
-                            <ValidationMessage For="@(() => RegisterModel.ConfirmPassword)" />
-                        </div>
+                                <div class="col-12">
+                                    <div class="form-floating">
+                                        <InputText @bind-Value="RegisterModel.NIF" class="form-control rounded-3" id="nif" placeholder="NIF" />
+                                        <label for="nif"><i class="bi bi-card-text me-2"></i>NIF</label>
+                                        <ValidationMessage For="@(() => RegisterModel.NIF)" />
+                                    </div>
+                                </div>
 
-                        @* 👇 AQUI ESTÁ O SWITCH (INTERRUPTOR) *@
-                        <div class="mb-4 form-check form-switch p-3 border rounded bg-light">
-                            <input class="form-check-input" type="checkbox" id="roleSwitch"
-                                   @bind="eFornecedor" style="margin-left: 0.5em;">
-                            <label class="form-check-label ms-2 fw-bold" for="roleSwitch">
-                                @(eFornecedor ? "Sou um Fornecedor 🚚" : "Sou um Cliente 🛒")
-                            </label>
-                        </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        <InputText @bind-Value="RegisterModel.Password" type="password" class="form-control rounded-3" id="pass" placeholder="Senha" />
+                                        <label for="pass"><i class="bi bi-lock me-2"></i>Password</label>
+                                    </div>
+                                    <ValidationMessage For="@(() => RegisterModel.Password)" />
+                                </div>
 
-                        <button type="submit" class="btn btn-success w-100">
-                            Registar
-                        </button>
-
-                        @if (!string.IsNullOrEmpty(mensagemErro))
-                        {
-                            <div class="alert alert-danger mt-3 text-center">
-                                @mensagemErro
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        <InputText @bind-Value="RegisterModel.ConfirmPassword" type="password" class="form-control rounded-3" id="confPass" placeholder="Confirmação" />
+                                        <label for="confPass"><i class="bi bi-check-circle me-2"></i>Confirmar</label>
+                                    </div>
+                                    <ValidationMessage For="@(() => RegisterModel.ConfirmPassword)" />
+                                </div>
                             </div>
-                        }
-                    </EditForm>
 
+                            @* SELETOR TIPO DE CONTA *@
+                            <div class="mt-4 mb-4">
+                                <label class="d-block text-muted small mb-2 text-center">Tipo de Conta</label>
+                                <div class="role-selector d-flex position-relative" @onclick="ToggleRole">
+                                    <div class="role-bg" style="transform: translateX(@(eFornecedor ? "100%" : "0%"))"></div>
+                                    <div class="role-option @(!eFornecedor ? "role-active" : "role-inactive")">
+                                        <i class="bi bi-cart me-1"></i> Cliente
+                                    </div>
+                                    <div class="role-option @(eFornecedor ? "role-active" : "role-inactive")">
+                                        <i class="bi bi-box-seam me-1"></i> Fornecedor
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(mensagemErro))
+                            {
+                                <div class="alert alert-danger text-center rounded-3 p-2 mb-3 small">
+                                    @mensagemErro
+                                </div>
+                            }
+
+                            <button type="submit" class="btn btn-gradient-success w-100 py-3 rounded-pill fw-bold shadow mt-2">
+                                CRIAR CONTA <i class="bi bi-person-plus-fill ms-1"></i>
+                            </button>
+
+                        </EditForm>
+
+                        <div class="mt-4 text-center">
+                            <small class="text-muted">Já tem conta? <a href="/login" class="text-decoration-none fw-bold text-success">Entrar aqui</a></small>
+                        </div>
+
+                    </div>
                 </div>
-                <div class="card-footer text-center">
-                    <small>Já tem conta? <a href="/login">Entrar aqui</a></small>
-                </div>
+
             </div>
         </div>
     </div>
@@ -81,15 +170,16 @@
 @code {
     public RegisterDto RegisterModel { get; set; } = new RegisterDto();
     private string mensagemErro = "";
-
-    // Variável auxiliar para controlar o switch
     private bool eFornecedor = false;
+
+    private void ToggleRole()
+    {
+        eFornecedor = !eFornecedor;
+    }
 
     private async Task HandleRegistration()
     {
         mensagemErro = "";
-
-        // 👇 DEFINIR A ROLE ANTES DE ENVIAR
         RegisterModel.Role = eFornecedor ? "Fornecedor" : "Cliente";
 
         try
@@ -110,17 +200,17 @@
                 }
                 else if (erroDetalhado.Contains("Password"))
                 {
-                    mensagemErro = "Password fraca (Use Maiúsculas, Números e Símbolos).";
+                    mensagemErro = "A password deve ter maiúsculas, números e símbolos.";
                 }
                 else
                 {
-                    mensagemErro = "Erro ao registar: " + erroDetalhado;
+                    mensagemErro = "Erro: " + erroDetalhado;
                 }
             }
         }
         catch (Exception)
         {
-            mensagemErro = "Erro ao ligar ao servidor API.";
+            mensagemErro = "Erro ao ligar ao servidor.";
         }
     }
 }

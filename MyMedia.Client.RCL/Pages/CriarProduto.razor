@@ -168,10 +168,10 @@
 
             // 👇 LÓGICA DE NEGÓCIO CORRIGIDA SEGUNDO O ENUNCIADO
             produto.FornecedorId = userId;
-            produto.Id = 0; 
+            produto.Id = 0;
 
             // 1. FORÇAR INATIVO (PENDENTE)
-            produto.IsAtivo = false; 
+            produto.Estado = EstadoProduto.Pausado;
 
             // 2. FORÇAR MARGEM A ZERO (O Admin define depois)
             produto.MargemLucro = 0; 

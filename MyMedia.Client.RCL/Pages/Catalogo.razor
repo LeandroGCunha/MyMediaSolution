@@ -2,9 +2,88 @@
 @using MyMedia.Data.Entities
 @using MyMedia.Client.RCL.Services
 @inject ClientProdutoService ProdutoService
-@inject HttpClient Http  
+@inject HttpClient Http
 
-<PageTitle>Catálogo Completo - MyMedia</PageTitle>
+<PageTitle>Catálogo - MyMedia</PageTitle>
+
+<style>
+    /* Cores Premium */
+    .text-gold {
+        color: #ffc107 !important;
+    }
+
+    .bg-gold {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+
+    .border-gold {
+        border-color: #ffc107 !important;
+    }
+
+    /* Estilo dos Cartões de Produto */
+    .product-card {
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border: 1px solid rgba(0,0,0,0.05);
+        background: white;
+    }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+            border-color: #ffc107;
+        }
+
+            .product-card:hover .btn-view {
+                background-color: #ffc107;
+                color: black;
+                border-color: #ffc107;
+            }
+
+    /* Botão Ver Detalhes */
+    .btn-view {
+        transition: 0.3s;
+        border-radius: 50px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+    }
+
+    /* Arvore de Categorias */
+    .tree-btn {
+        transition: all 0.2s;
+        border-radius: 4px;
+        color: #495057;
+    }
+
+        .tree-btn:hover {
+            background-color: #f8f9fa;
+            color: #ffc107;
+            padding-left: 20px !important;
+        }
+
+        .tree-btn.selected {
+            background-color: #1a1a1a !important; /* Preto */
+            color: #ffc107 !important; /* Amarelo */
+            border-left: 3px solid #ffc107 !important;
+            font-weight: bold;
+        }
+
+    /* Scrollbar personalizada para categorias */
+    .category-scroll::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .category-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .category-scroll::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
+    }
+</style>
 
 @* --- Lógica da Árvore de Categorias (Mantive igual) --- *@
 @{
@@ -15,9 +94,8 @@
         bool isSelected = categoriasSelecionadas.Contains(cat.Id);
         var subcategorias = categoriasDisponiveis.Where(sub => sub.CategoriaPaiId == cat.Id).ToList();
     }
-        <button class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center mb-1 tree-btn @(isSelected ? "btn-primary selected" : "btn-light text-dark")"
-                style="padding-left: @(cat.CategoriaPaiId == null ? "10px" : "15px");
-                       border-left: @(cat.CategoriaPaiId == null ? "3px solid transparent" : "3px solid #dee2e6");"
+        <button class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center mb-1 tree-btn @(isSelected ? "selected" : "btn-light bg-transparent")"
+                style="padding-left: @(cat.CategoriaPaiId == null ? "10px" : "15px");"
                 @onclick="() => AlternarCategoria(cat.Id)">
             <span class="text-truncate">
                 @if (cat.CategoriaPaiId != null)
@@ -28,7 +106,7 @@
             </span>
             @if (isSelected)
             {
-                <i class="bi bi-check-circle-fill small"></i>
+                <i class="bi bi-check-circle-fill small text-gold"></i>
             }
         </button>
     @if (subcategorias.Any())
@@ -43,44 +121,49 @@
     </text>;
 }
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="row">
 
         @* --- COLUNA DA ESQUERDA (FILTROS) --- *@
         <div class="col-lg-3 mb-4">
-            <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 1;">
-                <div class="card-header bg-white fw-bold d-flex align-items-center">
-                    <i class="bi bi-funnel me-2 text-primary"></i> Filtros
-                </div>
-                <div class="card-body">
+            <div class="card shadow-sm border-0 sticky-top rounded-4 overflow-hidden" style="top: 90px; z-index: 1;">
 
+                @* Cabeçalho Preto e Amarelo *@
+                <div class="card-header bg-dark text-white fw-bold d-flex align-items-center py-3">
+                    <i class="bi bi-sliders me-2 text-gold"></i> Filtros
+                </div>
+
+                <div class="card-body bg-white">
+
+                    @* Pesquisa *@
                     <div class="mb-4">
                         <label class="form-label small text-muted text-uppercase fw-bold">Pesquisar</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0"
-                                   placeholder="Nome do produto..."
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" class="form-control bg-light border-start-0"
+                                   placeholder="O que procura?"
                                    @bind="termoPesquisa"
                                    @bind:event="oninput"
                                    @onkeyup="FiltrarProdutos" />
                         </div>
                     </div>
 
+                    @* Categorias *@
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="form-label small text-muted text-uppercase fw-bold m-0">Categorias</label>
                             @if (categoriasSelecionadas.Count > 0)
                             {
-                                <button class="btn btn-link btn-sm p-0 text-decoration-none text-danger" style="font-size: 0.8rem;" @onclick="LimparCategorias">
-                                    Limpar
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none text-danger fw-bold" style="font-size: 0.7rem;" @onclick="LimparCategorias">
+                                    LIMPAR
                                 </button>
                             }
                         </div>
 
-                        <div class="category-tree" style="max-height: 400px; overflow-y: auto;">
-                            <button class="btn btn-sm w-100 text-start mb-1 @(categoriasSelecionadas.Count == 0 ? "btn-primary" : "btn-light text-dark")"
+                        <div class="category-scroll" style="max-height: 400px; overflow-y: auto;">
+                            <button class="btn btn-sm w-100 text-start mb-1 tree-btn @(categoriasSelecionadas.Count == 0 ? "selected" : "btn-light bg-transparent")"
                                     @onclick="LimparCategorias">
-                                <i class="bi bi-grid-fill me-2"></i> Todas as Categorias
+                                <i class="bi bi-grid-fill me-2"></i> Todas
                             </button>
 
                             @if (categoriasDisponiveis.Any())
@@ -94,12 +177,13 @@
                         </div>
                     </div>
 
+                    @* Ordenação *@
                     <div>
                         <label class="form-label small text-muted text-uppercase fw-bold">Ordenar por</label>
-                        <select class="form-select form-select-sm" @onchange="OrdenarProdutos">
-                            <option value="padrao">✨ Destaques</option>
-                            <option value="menor_preco">💲 Preço: Menor para Maior</option>
-                            <option value="maior_preco">💲 Preço: Maior para Menor</option>
+                        <select class="form-select form-select-sm bg-light border-0" @onchange="OrdenarProdutos">
+                            <option value="padrao">✨ Recomendados</option>
+                            <option value="menor_preco">📉 Preço: Baixo -> Alto</option>
+                            <option value="maior_preco">📈 Preço: Alto -> Baixo</option>
                             <option value="az">🔤 Nome: A - Z</option>
                         </select>
                     </div>
@@ -111,29 +195,28 @@
         @* --- COLUNA DA DIREITA (PRODUTOS) --- *@
         <div class="col-lg-9">
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
                 <h3 class="fw-bold m-0 text-dark">Catálogo</h3>
-                <span class="badge bg-white text-secondary border shadow-sm rounded-pill px-3 py-2">
-                    @produtosFiltrados.Count produtos encontrados
+                <span class="badge bg-gold text-dark border border-dark rounded-pill px-3 py-2 fw-bold">
+                    @produtosFiltrados.Count produtos
                 </span>
             </div>
 
             @if (carregando)
             {
                 <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2 text-muted">A carregar produtos...</p>
+                    <div class="spinner-border text-gold" role="status"></div>
                 </div>
             }
             else if (!produtosFiltrados.Any())
             {
-                <div class="text-center py-5">
+                <div class="text-center py-5 bg-white rounded-4 shadow-sm">
                     <div class="mb-3">
-                        <i class="bi bi-search fs-1 text-muted opacity-50"></i>
+                        <i class="bi bi-emoji-frown fs-1 text-muted opacity-50"></i>
                     </div>
-                    <h5 class="fw-bold">Nenhum produto encontrado</h5>
-                    <p class="text-muted">Tente ajustar os filtros ou pesquisar por outro termo.</p>
-                    <button class="btn btn-outline-primary mt-2" @onclick="LimparTudo">Limpar Filtros</button>
+                    <h5 class="fw-bold">Ups! Nada encontrado.</h5>
+                    <p class="text-muted">Tente mudar os filtros ou a pesquisa.</p>
+                    <button class="btn btn-outline-dark mt-2 rounded-pill px-4" @onclick="LimparTudo">Limpar Tudo</button>
                 </div>
             }
             else
@@ -142,39 +225,37 @@
                     @foreach (var p in produtosFiltrados)
                     {
                         <div class="col">
-                            <div class="card h-100 shadow-sm border-0 hover-card">
-                                <div class="position-relative bg-light" style="height: 220px; overflow: hidden;">
+                            <div class="card h-100 product-card rounded-4 overflow-hidden border-0">
+
+                                @* Imagem *@
+                                <div class="position-relative bg-light d-flex align-items-center justify-content-center" style="height: 220px;">
                                     @if (!string.IsNullOrEmpty(p.ImagemUrl))
                                     {
-                                        @* 👇 USAR A FUNÇÃO AQUI *@
-                                        <img src="@GetFullImageUrl(p.ImagemUrl)" class="card-img-top h-100 w-100" style="object-fit: cover; transition: transform 0.3s ease;">
+                                        <img src="@GetFullImageUrl(p.ImagemUrl)" class="w-100 h-100" style="object-fit: cover; mix-blend-mode: multiply;">
                                     }
                                     else
                                     {
-                                        <div class="d-flex align-items-center justify-content-center h-100 text-muted">
-                                            <i class="bi bi-camera fs-1 opacity-50"></i>
-                                        </div>
+                                        <i class="bi bi-camera fs-1 text-muted opacity-25"></i>
                                     }
 
-                                    <div class="position-absolute bottom-0 start-0 m-2">
-                                        <span class="badge bg-dark bg-opacity-75 backdrop-blur">
-                                            @p.PrecoFinal.ToString("C")
-                                        </span>
-                                    </div>
+                                    @* Preço Flutuante *@
+                                    <span class="position-absolute bottom-0 end-0 m-2 badge bg-dark text-gold px-3 py-2 rounded-3 shadow-sm" style="font-size: 0.9rem;">
+                                        @p.PrecoFinal.ToString("C")
+                                    </span>
                                 </div>
 
-                                <div class="card-body d-flex flex-column">
+                                <div class="card-body d-flex flex-column p-3">
                                     <div class="mb-auto">
-                                        <small class="text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">
+                                        <small class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem;">
                                             @p.Categoria?.Nome
                                         </small>
-                                        <h6 class="card-title fw-bold mt-1 text-truncate" title="@p.Titulo">
+                                        <h6 class="card-title fw-bold mt-1 text-truncate text-dark">
                                             @p.Titulo
                                         </h6>
                                     </div>
 
                                     <div class="mt-3">
-                                        <a href="/produto/@p.Id" class="btn btn-outline-primary w-100 btn-sm rounded-pill">
+                                        <a href="/produto/@p.Id" class="btn btn-outline-dark w-100 btn-view btn-sm">
                                             Ver Detalhes
                                         </a>
                                     </div>
@@ -187,18 +268,6 @@
         </div>
     </div>
 </div>
-
-<style>
-    .hover-card { transition: all 0.3s ease; }
-    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
-    .hover-card:hover img { transform: scale(1.05); }
-    .tree-btn { transition: all 0.2s; border-radius: 4px; }
-    .tree-btn:hover:not(.selected) { background-color: #e9ecef !important; padding-left: 20px !important; }
-    .backdrop-blur { backdrop-filter: blur(4px); }
-    .category-tree::-webkit-scrollbar { width: 6px; }
-    .category-tree::-webkit-scrollbar-track { background: #f1f1f1; }
-    .category-tree::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-</style>
 
 @code {
     private List<Produto> todosProdutos = new();
@@ -223,7 +292,11 @@
             var resultadoProdutos = await taskProdutos;
             if (resultadoProdutos != null)
             {
-                todosProdutos = resultadoProdutos.Where(p => p.IsAtivo).ToList();
+                // 👇 AQUI ESTÁ A CORREÇÃO
+                todosProdutos = resultadoProdutos
+                                    .Where(p => p.Estado == EstadoProduto.Ativo)
+                                    .ToList();
+
                 produtosFiltrados = new List<Produto>(todosProdutos);
             }
 
@@ -313,7 +386,6 @@
         FiltrarProdutos();
     }
 
-    // 👇 FUNÇÃO MÁGICA PARA AS IMAGENS
     private string GetFullImageUrl(string imagePath)
     {
         if (string.IsNullOrEmpty(imagePath)) return "";

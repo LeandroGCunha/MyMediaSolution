@@ -13,5 +13,9 @@ namespace MyMedia.Client.RCL.Models
         public List<string> Roles { get; set; } = new();
         public string UserId { get; set; } = string.Empty;
 
+        public string UserName { get; set; } = string.Empty;
+        public string NomeCompleto { get; set; } = string.Empty;
+
+
     }
 }

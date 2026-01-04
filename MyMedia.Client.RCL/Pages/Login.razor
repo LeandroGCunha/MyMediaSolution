@@ -11,57 +11,100 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IConfiguration Config
 
-<div class="container mt-5">
+<style>
+    /* Mantemos apenas o gradiente do botão para destaque */
+    .btn-gradient-primary {
+        background: linear-gradient(to right, #667eea, #764ba2);
+        border: none;
+        color: white;
+        transition: transform 0.2s;
+    }
 
+        .btn-gradient-primary:hover {
+            transform: scale(1.02);
+            color: white;
+            background: linear-gradient(to right, #764ba2, #667eea);
+        }
 
+    /* Estilos para os inputs flutuantes */
+    .form-floating > label {
+        color: #6c757d;
+    }
 
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center">
-                    <h3>🔐 Entrar</h3>
-                </div>
-                <div class="card-body">
+    .form-control:focus {
+        border-color: #764ba2;
+        box-shadow: 0 0 0 0.25rem rgba(118, 75, 162, 0.25);
+    }
+</style>
 
-                    @if (!string.IsNullOrEmpty(mensagemErro))
-                    {
-                        <div class="alert alert-danger text-center">@mensagemErro</div>
-                    }
+@* Fundo cinza claro simples *@
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-light py-5">
 
-                    @* --- WEB (FORMULÁRIO) --- *@
-                    @if (!IsMobile)
-                    {
-                        <form action="/account/login" method="post">
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input name="email" type="text" class="form-control" required />
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+
+                @* Cartão branco sólido com sombra *@
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden bg-white">
+                    <div class="card-body p-4 p-md-5">
+
+                        <div class="text-center mb-4">
+                            <div class="bg-light rounded-circle d-inline-flex p-3 shadow-sm mb-3">
+                                <i class="bi bi-person-circle fs-1 text-primary"></i>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input name="password" type="password" class="form-control" required />
+                            <h3 class="fw-bold text-dark">Bem-vindo</h3>
+                            <p class="text-muted small">Insira os seus dados para continuar</p>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger d-flex align-items-center rounded-3 p-2 mb-3" role="alert">
+                                <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>
+                                <div class="small">@mensagemErro</div>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">Entrar (Web)</button>
-                        </form>
-                    }
+                        }
 
-                    @* --- MOBILE (C#) --- *@
-                    @if (IsMobile)
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input @bind="emailModel" class="form-control" placeholder="admin" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input @bind="passwordModel" type="password" class="form-control" placeholder="******" />
-                        </div>
-                        <button class="btn btn-primary w-100" @onclick="LoginMobile">Entrar (Mobile)</button>
-                    }
+                        @* --- WEB (FORMULÁRIO HTML) --- *@
+                        @if (!IsMobile)
+                        {
+                            <form action="/account/login" method="post">
+                                <div class="form-floating mb-3">
+                                    <input name="email" type="text" class="form-control rounded-3" id="emailWeb" placeholder="nome@exemplo.com" required />
+                                    <label for="emailWeb"><i class="bi bi-envelope me-2"></i>Email</label>
+                                </div>
+                                <div class="form-floating mb-4">
+                                    <input name="password" type="password" class="form-control rounded-3" id="passWeb" placeholder="Password" required />
+                                    <label for="passWeb"><i class="bi bi-key me-2"></i>Palavra-passe</label>
+                                </div>
+                                <button type="submit" class="btn btn-gradient-primary w-100 py-3 rounded-pill fw-bold shadow">
+                                    ENTRAR <i class="bi bi-arrow-right-short ms-1"></i>
+                                </button>
+                            </form>
+                        }
 
-                    <div class="mt-3 text-center">
-                        <a href="/registar">Criar Conta</a>
+                        @* --- MOBILE (C# BLAZOR) --- *@
+                        @if (IsMobile)
+                        {
+                            <div class="form-floating mb-3">
+                                <input @bind="emailModel" class="form-control rounded-3" id="emailMob" placeholder="admin" />
+                                <label for="emailMob"><i class="bi bi-envelope me-2"></i>Email</label>
+                            </div>
+                            <div class="form-floating mb-4">
+                                <input @bind="passwordModel" type="password" class="form-control rounded-3" id="passMob" placeholder="Password" />
+                                <label for="passMob"><i class="bi bi-key me-2"></i>Palavra-passe</label>
+                            </div>
+                            <button class="btn btn-gradient-primary w-100 py-3 rounded-pill fw-bold shadow" @onclick="LoginMobile">
+                                ENTRAR <i class="bi bi-arrow-right-short ms-1"></i>
+                            </button>
+                        }
+
+                        <div class="mt-4 text-center">
+                            <p class="small text-muted mb-0">Não tem conta?</p>
+                            <a href="/register" class="text-decoration-none fw-bold text-primary">Criar nova conta</a>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -78,25 +121,15 @@
 
     protected override void OnInitialized()
     {
-        // 1. TENTATIVA PELA CONFIGURAÇÃO (MauiProgram)
         var configMobile = Config["IsMobile"];
+        if (!string.IsNullOrEmpty(configMobile) && configMobile == "true") IsMobile = true;
 
-        // Se a config tiver "true", ativa o modo Mobile
-        if (!string.IsNullOrEmpty(configMobile) && configMobile == "true")
-        {
-            IsMobile = true;
-        }
-
-        // 2. SEGURANÇA EXTRA: Se falhar a config, tenta detetar o sistema operativo
-        // (Isto ajuda no Windows se a config falhar)
 #if ANDROID || IOS || MACCATALYST || WINDOWS
-            // Se estivermos a compilar nativamente, força true,
-            // a menos que estejas a correr o projeto WEB no PC.
              IsMobile = true;
 #endif
 
         if (ErrorCode == "pendente") mensagemErro = "Conta pendente.";
-        if (ErrorCode == "credenciais_invalidas") mensagemErro = "Dados inválidos.";
+        if (ErrorCode == "credenciais_invalidas") mensagemErro = "Email ou password incorretos.";
     }
 
     async Task LoginMobile()
@@ -107,7 +140,9 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var userDto = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var userDto = await response.Content.ReadFromJsonAsync<LoginResponseDto>(options);
+
                 if (AuthProvider is CustomAuthStateProvider customProvider)
                 {
                     customProvider.NotifyLogin(userDto);
@@ -116,12 +151,12 @@
             }
             else
             {
-                mensagemErro = "Erro no login mobile.";
+                mensagemErro = "Dados de login incorretos.";
             }
         }
         catch (Exception ex)
         {
-            mensagemErro = "Erro: " + ex.Message;
+            mensagemErro = "Erro de ligação: " + ex.Message;
         }
     }
 }

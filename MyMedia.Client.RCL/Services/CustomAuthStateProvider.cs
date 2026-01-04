@@ -35,6 +35,7 @@ namespace MyMedia.Client.RCL.Services
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.Name, userInfo.UserName)
+
                     };
 
                     var identity = new ClaimsIdentity(claims, "CookieAuth");
@@ -59,8 +60,11 @@ namespace MyMedia.Client.RCL.Services
         {
             var claims = new List<Claim>
             {
-        
+                new Claim(ClaimTypes.Name,
+            !string.IsNullOrEmpty(userDto.NomeCompleto) ? userDto.NomeCompleto :
+            !string.IsNullOrEmpty(userDto.UserName) ? userDto.UserName : "Utilizador"),
                 new Claim(ClaimTypes.NameIdentifier, userDto.UserId ?? "")
+
             };
 
             // Adiciona as Roles (Admin, Cliente, etc)

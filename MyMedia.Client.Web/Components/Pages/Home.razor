@@ -1,98 +1,195 @@
-﻿@page "/Home"
+﻿@page "/produtos/editar/{id:int}"
+@attribute [Authorize(Roles = "Administrador, Funcionario")]
+
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
+@using System.IO
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Hosting
+
 @inject ApplicationDbContext Context
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+@rendermode InteractiveServer
 
-@if (produtosDestaque.Any())
+<h3>Editar Produto</h3>
+
+@if (produto == null)
 {
-    <div id="carouselExampleCaptions" class="carousel slide mb-5 shadow" data-bs-ride="carousel">
-        <div class="carousel-indicators">
-            @for (int i = 0; i < produtosDestaque.Count; i++)
-            {
-                <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"></button>
-            }
-        </div>
-        <div class="carousel-inner">
-            @foreach (var item in produtosDestaque.Select((prod, index) => new { prod, index }))
-            {
-                <div class="carousel-item @(item.index == 0 ? "active" : "")" style="height: 400px; background-color: #333;">
-                    @if (!string.IsNullOrEmpty(item.prod.ImagemUrl))
-                    {
-                        <img src="@item.prod.ImagemUrl" class="d-block w-100" style="object-fit: cover; height: 100%; opacity: 0.6;">
-                    }
-                    else
-                    {
-                        <div class="d-block w-100 h-100 bg-secondary"></div>
-                    }
+    <p><em>A carregar dados...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <EditForm Model="produto" OnValidSubmit="AtualizarProduto">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-                    <div class="carousel-caption d-none d-md-block">
-                        <h2 class="display-4 fw-bold">@item.prod.Titulo</h2>
-                        <p class="lead">@item.prod.PrecoFinal.ToString("C")</p>
-                        <a href="/detalhes/@item.prod.Id" class="btn btn-primary btn-lg">Ver Agora</a>
+                <div class="mb-3">
+                    <label>Título:</label>
+                    <InputText class="form-control" @bind-Value="produto.Titulo" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Descrição:</label>
+                    <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" />
+                </div>
+
+                <div class="mb-3 border p-3 rounded bg-light">
+                    <label class="form-label fw-bold">Imagem do Produto:</label>
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            @if (!string.IsNullOrEmpty(imagemPreview))
+                            {
+                                <p class="small text-success">Nova Imagem (Pré-visualização):</p>
+                                <img src="@imagemPreview" width="150" class="img-thumbnail border-success" />
+                            }
+                            else if (!string.IsNullOrEmpty(produto.ImagemUrl))
+                            {
+                                <p class="small text-muted">Imagem Atual:</p>
+                                <img src="@($"https://localhost:7198/{produto.ImagemUrl}")" width="150" class="img-thumbnail" />
+                            }
+                            else
+                            {
+                                <div class="border p-3 text-muted">Sem Imagem</div>
+                            }
+                        </div>
+                        <div class="col-md-8 align-self-center">
+                            <label class="form-label">Escolher Nova Imagem:</label>
+                            <InputFile OnChange="CarregarImagemPreview" class="form-control" accept=".jpg,.jpeg,.png" />
+                            <small class="text-muted">Deixe vazio para manter a imagem atual.</small>
+                        </div>
                     </div>
                 </div>
-            }
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Categoria:</label>
+                        <InputSelect class="form-select" @bind-Value="produto.CategoriaId">
+                            <option value="">-- Selecione --</option>
+                            @foreach (var cat in listaCategorias)
+                            {
+                                <option value="@cat.Id">@cat.Nome</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    @* 👇 CORREÇÃO: SELETOR DE ESTADO (ENUM) *@
+                    <div class="col-md-6 mb-3">
+                        <label>Estado do Produto:</label>
+                        <InputSelect class="form-select" @bind-Value="produto.Estado">
+                            <option value="@EstadoProduto.Pendente">Pendente (Em Análise)</option>
+                            <option value="@EstadoProduto.Ativo">Ativo (Visível na Loja)</option>
+                            <option value="@EstadoProduto.Pausado">Pausado</option>
+                            <option value="@EstadoProduto.Rejeitado">Rejeitado</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="row bg-light p-3 border rounded mb-3">
+                    <div class="col-md-4 mb-3">
+                        <label>Preço Base (€):</label>
+                        <InputNumber class="form-control" @bind-Value="produto.PrecoBase" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Margem (0.5 = 50%):</label>
+                        <InputNumber class="form-control" @bind-Value="produto.MargemLucro" Step="0.01" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Stock:</label>
+                        <InputNumber class="form-control" @bind-Value="produto.Stock" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                <a href="/produtos" class="btn btn-secondary ms-2">Cancelar</a>
+            </EditForm>
         </div>
-        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon"></span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
-            <span class="carousel-control-next-icon"></span>
-        </button>
     </div>
 }
 
-<div class="container mb-5">
-    <h3 class="mb-4 border-bottom pb-2">Novidades na Loja</h3>
-
-    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
-        @foreach (var p in todosProdutos)
-        {
-            <div class="col">
-                <div class="card h-100 shadow-sm border-0">
-                    <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center">
-                        @if (!string.IsNullOrEmpty(p.ImagemUrl))
-                        {
-                            <img src="@p.ImagemUrl" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;">
-                        }
-                        else
-                        {
-                            <span class="text-muted"><i class="bi bi-camera"></i> Sem foto</span>
-                        }
-                    </div>
-
-                    <div class="card-body">
-                        <h5 class="card-title text-truncate">@p.Titulo</h5>
-                        <p class="card-text text-success fw-bold fs-5">@p.PrecoFinal.ToString("C")</p>
-                    </div>
-                    <div class="card-footer bg-transparent border-top-0 d-grid">
-                        <a href="/detalhes/@p.Id" class="btn btn-outline-primary">Detalhes</a>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-</div>
-
 @code {
-    private List<Produto> produtosDestaque = new();
-    private List<Produto> todosProdutos = new();
+    [Parameter]
+    public int Id { get; set; }
+
+    private Produto? produto;
+    private List<Categoria> listaCategorias = new();
+    private IBrowserFile? novoFicheiroSelecionado;
+    private string? imagemPreview;
 
     protected override async Task OnInitializedAsync()
     {
-        // Vai buscar os últimos 3 produtos para o Slider
-        produtosDestaque = await Context.Produtos
-            .Where(p => p.IsAtivo && !string.IsNullOrEmpty(p.ImagemUrl)) // Só com imagem
-            .OrderByDescending(p => p.Id)
-            .Take(3)
-            .ToListAsync();
+        listaCategorias = await Context.Categorias.AsNoTracking().ToListAsync();
+        produto = await Context.Produtos.FindAsync(Id);
 
-        // Vai buscar o resto para a grelha
-        todosProdutos = await Context.Produtos
-            .Where(p => p.IsAtivo)
-            .OrderByDescending(p => p.Id)
-            .Take(8) // Limite de 8 produtos na home
-            .ToListAsync();
+        if (produto == null)
+        {
+            Navigation.NavigateTo("/produtos");
+        }
+    }
+
+    private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
+    {
+        novoFicheiroSelecionado = e.File;
+        long maxFileSize = 1024 * 1024 * 5;
+        var format = "image/png";
+
+        try
+        {
+            var resizedImage = await novoFicheiroSelecionado.RequestImageFileAsync(format, 300, 300);
+            using (var stream = resizedImage.OpenReadStream(maxFileSize))
+            using (var ms = new MemoryStream())
+            {
+                await stream.CopyToAsync(ms);
+                imagemPreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro na pré-visualização: {ex.Message}");
+        }
+    }
+
+    private async Task AtualizarProduto()
+    {
+        if (produto == null) return;
+
+        // --- GRAVAR NOVA IMAGEM ---
+        if (novoFicheiroSelecionado != null)
+        {
+            var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
+            var pastaImagensApi = Path.Combine(pastaApi, "imagens");
+
+            if (!Directory.Exists(pastaImagensApi)) Directory.CreateDirectory(pastaImagensApi);
+
+            // 1. APAGAR IMAGEM ANTIGA
+            if (!string.IsNullOrEmpty(produto.ImagemUrl))
+            {
+                var nomeFicheiroAntigo = Path.GetFileName(produto.ImagemUrl.Split('?')[0]);
+                var caminhoAntigo = Path.Combine(pastaImagensApi, nomeFicheiroAntigo);
+                if (File.Exists(caminhoAntigo)) { try { File.Delete(caminhoAntigo); } catch { } }
+            }
+
+            // 2. GRAVAR NOVA
+            var extensao = Path.GetExtension(novoFicheiroSelecionado.Name);
+            var nomeFicheiroNovo = $"{produto.Id}{extensao}";
+            var caminhoCompleto = Path.Combine(pastaImagensApi, nomeFicheiroNovo);
+
+            await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
+            await novoFicheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
+
+            produto.ImagemUrl = $"imagens/{nomeFicheiroNovo}?v={DateTime.Now.Ticks}";
+        }
+
+        // Recalcular Preço
+        produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
+
+        Context.Produtos.Update(produto);
+        await Context.SaveChangesAsync();
+
+        Navigation.NavigateTo("/produtos");
     }
 }

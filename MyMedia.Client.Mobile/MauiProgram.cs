@@ -36,23 +36,28 @@ namespace MyMedia.Client.Mobile
             // ============================================================
             // 2. HTTP CLIENT (COM BYPASS DE SSL PARA ANDROID)
             // ============================================================
+
             builder.Services.AddScoped(sp =>
             {
-                // URL Base (Ajusta a porta 7198 se for diferente no teu launchSettings.json)
-                string apiUrl = "https://localhost:7198/";
+                // ⚠️ PASSO CRÍTICO:
+                // 1. Vai à janela "Output" ou ao topo do Visual Studio (onde diz o nome do túnel).
+                // 2. Copia o endereço (ex: https://leandro-app-7198.devtunnels.ms/)
+                // 3. Cola AQUI em baixo 👇
 
-                // No Android, localhost é 10.0.2.2
-                if (DeviceInfo.Platform == DevicePlatform.Android)
-                {
-                    apiUrl = "https://10.0.2.2:7198/";
-                }
+                string devTunnelUrl = "https://csqnv48d-7198.uks1.devtunnels.ms";
 
-                // Handler para ignorar erros de certificado (SÓ PARA DEV)
+                // Nota: Com o Dev Tunnel, já não precisas do "if Android 10.0.2.2".
+                // O link é público e funciona igual no Windows e no Android.
+
+                // Handler para ignorar erros SSL (necessário mesmo com túneis às vezes)
                 var handler = new HttpClientHandler();
                 handler.ServerCertificateCustomValidationCallback =
                     (message, cert, chain, errors) => true;
 
-                return new HttpClient(handler) { BaseAddress = new Uri(apiUrl) };
+                return new HttpClient(handler)
+                {
+                    BaseAddress = new Uri(devTunnelUrl)
+                };
             });
 
 

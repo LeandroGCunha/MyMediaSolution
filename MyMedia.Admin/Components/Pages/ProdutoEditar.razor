@@ -1,9 +1,14 @@
 ﻿@page "/produtos/editar/{id:int}"
 @attribute [Authorize(Roles = "Administrador, Funcionario")]
+
 @using MyMedia.Data
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
 @using System.IO
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Hosting
+
 @inject ApplicationDbContext Context
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
@@ -23,16 +28,19 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
+                @* 1. TÍTULO *@
                 <div class="mb-3">
                     <label>Título:</label>
                     <InputText class="form-control" @bind-Value="produto.Titulo" />
                 </div>
 
+                @* 2. DESCRIÇÃO *@
                 <div class="mb-3">
                     <label>Descrição:</label>
                     <InputTextArea class="form-control" @bind-Value="produto.Descricao" rows="4" />
                 </div>
 
+                @* 3. IMAGEM *@
                 <div class="mb-3 border p-3 rounded bg-light">
                     <label class="form-label fw-bold">Imagem do Produto:</label>
                     <div class="row">
@@ -45,7 +53,7 @@ else
                             else if (!string.IsNullOrEmpty(produto.ImagemUrl))
                             {
                                 <p class="small text-muted">Imagem Atual:</p>
-                                @* 👇 1. CORREÇÃO VISUAL: Apontar para a API *@
+                                @* Ajusta o localhost se necessário *@
                                 <img src="@($"https://localhost:7198/{produto.ImagemUrl}")" width="150" class="img-thumbnail" />
                             }
                             else
@@ -61,6 +69,7 @@ else
                     </div>
                 </div>
 
+                @* 4. CATEGORIA E ESTADO *@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label>Categoria:</label>
@@ -72,8 +81,20 @@ else
                             }
                         </InputSelect>
                     </div>
+
+                    @* 👇 CORREÇÃO: SELETOR DE ESTADO (ENUM) *@
+                    <div class="col-md-6 mb-3">
+                        <label class="fw-bold">Estado do Produto:</label>
+                        <InputSelect class="form-select" @bind-Value="produto.Estado">
+                            <option value="@EstadoProduto.Pendente">🟡 Pendente (Em Análise)</option>
+                            <option value="@EstadoProduto.Ativo">🟢 Ativo (Visível na Loja)</option>
+                            <option value="@EstadoProduto.Pausado">⚪ Pausado (Pelo Fornecedor)</option>
+                            <option value="@EstadoProduto.Rejeitado">🔴 Rejeitado (Pelo Admin)</option>
+                        </InputSelect>
+                    </div>
                 </div>
 
+                @* 5. PREÇOS E STOCK *@
                 <div class="row bg-light p-3 border rounded mb-3">
                     <div class="col-md-4 mb-3">
                         <label>Preço Base (€):</label>
@@ -88,17 +109,12 @@ else
                         <InputNumber class="form-control" @bind-Value="produto.Stock" />
                     </div>
 
-                    <div class="col-12">
-                        <div class="form-check form-switch">
-                            <InputCheckbox class="form-check-input" @bind-Value="produto.IsAtivo" id="flexSwitchCheckChecked" />
-                            <label class="form-check-label fw-bold" for="flexSwitchCheckChecked">
-                                @(produto.IsAtivo ? "Produto Ativo e Visível" : "Produto Inativo (Oculto)")
-                            </label>
-                        </div>
+                    <div class="col-12 mt-2">
+                        <p>Preço Final Calculado: <strong class="text-success">@produto.PrecoFinal.ToString("C")</strong></p>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                <button type="submit" class="btn btn-primary">💾 Guardar Alterações</button>
                 <a href="/produtos" class="btn btn-secondary ms-2">Cancelar</a>
             </EditForm>
         </div>
@@ -111,8 +127,6 @@ else
 
     private Produto? produto;
     private List<Categoria> listaCategorias = new();
-
-    // Variáveis para controlar o upload da nova imagem
     private IBrowserFile? novoFicheiroSelecionado;
     private string? imagemPreview;
 
@@ -127,12 +141,10 @@ else
         }
     }
 
-    // --- LÓGICA DA PRÉ-VISUALIZAÇÃO ---
     private async Task CarregarImagemPreview(InputFileChangeEventArgs e)
     {
         novoFicheiroSelecionado = e.File;
-
-        long maxFileSize = 1024 * 1024 * 5; // 5MB
+        long maxFileSize = 1024 * 1024 * 5;
         var format = "image/png";
 
         try
@@ -158,41 +170,35 @@ else
         // --- GRAVAR NOVA IMAGEM (Se houver) ---
         if (novoFicheiroSelecionado != null)
         {
-            // 👇 DEFINIR A PASTA DE DESTINO CORRETA (NA API)
-            // Sai do Admin (..) -> Entra na API -> wwwroot
+            // Caminho para a pasta wwwroot da API
             var pastaApi = Path.GetFullPath(Path.Combine(Environment.ContentRootPath, "..", "MyMedia.API", "wwwroot"));
             var pastaImagensApi = Path.Combine(pastaApi, "imagens");
 
-            // Garante que a pasta existe na API
             if (!Directory.Exists(pastaImagensApi)) Directory.CreateDirectory(pastaImagensApi);
 
-            // 1. APAGAR IMAGEM ANTIGA DA API
+            // 1. Apagar imagem antiga
             if (!string.IsNullOrEmpty(produto.ImagemUrl))
             {
-                // Limpa o URL para ficar apenas o nome do ficheiro (ex: 15.png)
                 var nomeFicheiroAntigo = Path.GetFileName(produto.ImagemUrl.Split('?')[0]);
                 var caminhoAntigo = Path.Combine(pastaImagensApi, nomeFicheiroAntigo);
-
                 if (File.Exists(caminhoAntigo))
                 {
                     try { File.Delete(caminhoAntigo); } catch { }
                 }
             }
 
-            // 2. GRAVAR NOVA IMAGEM NA API
+            // 2. Gravar nova imagem
             var extensao = Path.GetExtension(novoFicheiroSelecionado.Name);
-            var nomeFicheiroNovo = $"{produto.Id}{extensao}"; // Ex: 15.png
+            var nomeFicheiroNovo = $"{produto.Id}{extensao}";
             var caminhoCompleto = Path.Combine(pastaImagensApi, nomeFicheiroNovo);
 
             await using var stream = new FileStream(caminhoCompleto, FileMode.Create);
             await novoFicheiroSelecionado.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
 
-            // 4. Atualizar o URL na BD
-            // Nota: O caminho começa com "imagens/" porque na API a pasta "wwwroot" é a raiz
             produto.ImagemUrl = $"imagens/{nomeFicheiroNovo}?v={DateTime.Now.Ticks}";
         }
 
-        // Recalcular Preço
+        // Recalcular Preço Final
         produto.PrecoFinal = produto.PrecoBase + (produto.PrecoBase * produto.MargemLucro);
 
         Context.Produtos.Update(produto);

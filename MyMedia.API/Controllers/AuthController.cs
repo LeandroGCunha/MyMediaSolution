@@ -84,7 +84,9 @@ namespace MyMedia.Server.Controllers
             {
                 Message = "Login com sucesso!",
                 Roles = roles,
-                UserId = user.Id
+                UserId = user.Id,
+                UserName = user.UserName,
+                NomeCompleto = user.NomeCompleto
 
             });
         }
