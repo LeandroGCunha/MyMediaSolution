@@ -17,25 +17,28 @@
                 <i class="bi bi-play-circle-fill text-warning"></i> MyMedia
             </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarStore">
+            @* 1. BOTÃO HAMBÚRGUER (Agora chama a função C#) *@
+            <button class="navbar-toggler" type="button" @onclick="ToggleNavbar">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
-            <div class="collapse navbar-collapse" id="navbarStore">
+            @* 2. ÁREA QUE ABRE E FECHA (A classe CSS muda dinamicamente) *@
+            <div class="@NavMenuCssClass" id="navbarStore">
 
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">Início</a>
+                        @* Adicionei @onclick="CollapseNavbar" para o menu fechar quando clicas no link *@
+                        <a class="nav-link" href="/" @onclick="CollapseNavbar">Início</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/catalogo">Catálogo</a>
+                        <a class="nav-link" href="/catalogo" @onclick="CollapseNavbar">Catálogo</a>
                     </li>
                 </ul>
 
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
 
                     <li class="nav-item me-3">
-                        <a class="btn btn-outline-warning btn-sm position-relative border-0" href="/carrinho">
+                        <a class="btn btn-outline-warning btn-sm position-relative border-0" href="/carrinho" @onclick="CollapseNavbar">
                             <i class="bi bi-cart-fill fs-5"></i>
                             @if (CarrinhoSvc.ContarItens() > 0)
                             {
@@ -60,7 +63,6 @@
                                         <i class="bi bi-person-fill"></i>
                                     </div>
                                     @context.User.Identity?.Name
-                                    @* 👇 Pequena etiqueta visual para saberes o que és *@
                                     @if (context.User.IsInRole("Fornecedor"))
                                     {
                                         <span class="badge bg-warning text-dark ms-1" style="font-size: 0.6em;">PRO</span>
@@ -69,31 +71,27 @@
 
                                 <ul class="dropdown-menu dropdown-menu-end shadow @(mostrarMenuUsuario ? "show" : "")">
 
-                                    @* 1. PERFIL (COMUM A TODOS) *@
-                                    <li><a class="dropdown-item" href="perfil" @onclick="FecharMenu"><i class="bi bi-person-gear me-2"></i>Minha Conta</a></li>
+                                    <li><a class="dropdown-item" href="perfil" @onclick="FecharTudo"><i class="bi bi-person-gear me-2"></i>Minha Conta</a></li>
 
-                                    @* 2. MENU ESPECÍFICO *@
                                     @if (context.User.IsInRole("Fornecedor"))
                                     {
-                                        // --- MENU DO FORNECEDOR ---
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header">Área do Fornecedor</h6></li>
                                         <li>
-                                            <a class="dropdown-item" href="meus-produtos" @onclick="FecharMenu">
+                                            <a class="dropdown-item" href="meus-produtos" @onclick="FecharTudo">
                                                 <i class="bi bi-box-seam-fill me-2 text-primary"></i> Gerir Produtos
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item" href="painel-vendas" @onclick="FecharMenu">
+                                            <a class="dropdown-item" href="painel-vendas" @onclick="FecharTudo">
                                                 <i class="bi bi-graph-up-arrow me-2 text-success"></i> Relatório de Vendas
                                             </a>
                                         </li>
                                     }
                                     else
                                     {
-                                        // --- MENU DO CLIENTE ---
                                         <li>
-                                            <a class="dropdown-item" href="minhas-encomendas" @onclick="FecharMenu">
+                                            <a class="dropdown-item" href="minhas-encomendas" @onclick="FecharTudo">
                                                 <i class="bi bi-bag-check me-2"></i> Minhas Compras
                                             </a>
                                         </li>
@@ -101,7 +99,6 @@
 
                                     <li><hr class="dropdown-divider"></li>
 
-                                    @* 3. SAIR (COMUM A TODOS) *@
                                     <li>
                                         <a href="/account/logout" class="dropdown-item text-danger d-flex align-items-center">
                                             <i class="bi bi-box-arrow-right me-2"></i> Sair
@@ -109,18 +106,19 @@
                                     </li>
                                 </ul>
 
+                                @* Overlay para fechar menu de utilizador ao clicar fora *@
                                 @if (mostrarMenuUsuario)
                                 {
-                                    <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 900;" @onclick="FecharMenu"></div>
+                                    <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 900;" @onclick="FecharMenuUsuario"></div>
                                 }
                             </li>
                         </Authorized>
                         <NotAuthorized>
                             <li class="nav-item">
-                                <a class="nav-link" href="login">Entrar</a>
+                                <a class="nav-link" href="login" @onclick="CollapseNavbar">Entrar</a>
                             </li>
                             <li class="nav-item ms-2">
-                                <a class="btn btn-primary btn-sm rounded-pill px-3" href="register">Registar</a>
+                                <a class="btn btn-primary btn-sm rounded-pill px-3" href="register" @onclick="CollapseNavbar">Registar</a>
                             </li>
                         </NotAuthorized>
                     </AuthorizeView>
@@ -144,7 +142,27 @@
 </div>
 
 @code {
-    // VARIÁVEIS PARA O MENU
+    // ---------------------------------------------
+    // 1. LÓGICA DO MENU HAMBÚRGUER (NAVBAR PRINCIPAL)
+    // ---------------------------------------------
+    private bool collapseNavMenu = true;
+
+    // Se collapse for true, não tem 'show'. Se for false, adiciona 'show'.
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse navbar-collapse" : "collapse navbar-collapse show";
+
+    private void ToggleNavbar()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private void CollapseNavbar()
+    {
+        collapseNavMenu = true;
+    }
+
+    // ---------------------------------------------
+    // 2. LÓGICA DO MENU DE UTILIZADOR (DROPDOWN)
+    // ---------------------------------------------
     private bool mostrarMenuUsuario = false;
 
     private void ToggleMenuUsuario()
@@ -152,12 +170,21 @@
         mostrarMenuUsuario = !mostrarMenuUsuario;
     }
 
-    private void FecharMenu()
+    private void FecharMenuUsuario()
     {
         mostrarMenuUsuario = false;
     }
 
-    // LÓGICA DO CARRINHO
+    // Fecha tudo quando clica num link (Útil para mobile)
+    private void FecharTudo()
+    {
+        mostrarMenuUsuario = false;
+        collapseNavMenu = true;
+    }
+
+    // ---------------------------------------------
+    // 3. CARRINHO
+    // ---------------------------------------------
     protected override void OnInitialized()
     {
         CarrinhoSvc.OnChange += StateHasChanged;

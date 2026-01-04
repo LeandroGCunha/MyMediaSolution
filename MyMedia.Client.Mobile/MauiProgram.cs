@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
-// 👇 ADICIONA ESTE USING PARA ENCONTRAR OS SERVIÇOS 👇
-using MyMedia.Client.RCL.Services;
+using Microsoft.Extensions.Configuration; // ⚠️ Necessário para a config
+using MyMedia.Client.RCL.Services; // ⚠️ Onde está o CustomAuthStateProvider
 
 namespace MyMedia.Client.Mobile
 {
@@ -25,37 +25,58 @@ namespace MyMedia.Client.Mobile
             builder.Logging.AddDebug();
 #endif
 
-            // --- 1. API ---
-            string apiUrl = "https://localhost:7198/";
-            if (DeviceInfo.Platform == DevicePlatform.Android) apiUrl = "http://10.0.2.2:5000/";
+            // ============================================================
+            // 1. CONFIGURAÇÃO "IS MOBILE" (Para funcionar no Windows)
+            // ============================================================
+            // Isto diz ao Login.razor: "Sim, sou uma app mobile" (mesmo no Windows)
+            var settings = new Dictionary<string, string> { { "IsMobile", "true" } };
+            builder.Configuration.AddInMemoryCollection(settings);
 
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiUrl) });
 
-            // --- 2. LOGIN (Já tinhas isto) ---
+            // ============================================================
+            // 2. HTTP CLIENT (COM BYPASS DE SSL PARA ANDROID)
+            // ============================================================
+            builder.Services.AddScoped(sp =>
+            {
+                // URL Base (Ajusta a porta 7198 se for diferente no teu launchSettings.json)
+                string apiUrl = "https://localhost:7198/";
+
+                // No Android, localhost é 10.0.2.2
+                if (DeviceInfo.Platform == DevicePlatform.Android)
+                {
+                    apiUrl = "https://10.0.2.2:7198/";
+                }
+
+                // Handler para ignorar erros de certificado (SÓ PARA DEV)
+                var handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback =
+                    (message, cert, chain, errors) => true;
+
+                return new HttpClient(handler) { BaseAddress = new Uri(apiUrl) };
+            });
+
+
+            // ============================================================
+            // 3. AUTENTICAÇÃO (O CORRETO)
+            // ============================================================
             builder.Services.AddAuthorizationCore();
-            builder.Services.AddScoped<AuthenticationStateProvider, AuthStateProviderMobile>();
 
-            // --- 3. 👇 SERVIÇOS DO CARRINHO E PRODUTOS (ADICIONA ISTO!) 👇 ---
-            // Tens de registar todos os serviços que usas na RCL
+            // ⚠️ MUDANÇA IMPORTANTE: 
+            // Usamos o CustomAuthStateProvider da RCL (que tem o NotifyLogin)
+            // e NÃO o AuthStateProviderMobile vazio.
+            builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+
+            // Registar o Serviço de Auth (para o Login funcionar)
+            builder.Services.AddScoped<ClientAuthService>();
+
+
+            // ============================================================
+            // 4. OUTROS SERVIÇOS
+            // ============================================================
             builder.Services.AddScoped<CarrinhoService>();
             builder.Services.AddScoped<ClientProdutoService>();
 
-            // ⚠️ NOTA: Se o teu CarrinhoService usar "LocalStorage", 
-            // vais precisar de instalar o pacote 'Blazored.LocalStorage' no projeto Mobile também
-            // e adicionar: builder.Services.AddBlazoredLocalStorage();
-
             return builder.Build();
-        }
-    }
-
-    // (A classe AuthStateProviderMobile continua aqui em baixo igual...)
-    public class AuthStateProviderMobile : AuthenticationStateProvider
-    {
-        public override Task<AuthenticationState> GetAuthenticationStateAsync()
-        {
-            var identity = new ClaimsIdentity();
-            var user = new ClaimsPrincipal(identity);
-            return Task.FromResult(new AuthenticationState(user));
         }
     }
 }

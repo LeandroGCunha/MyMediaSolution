@@ -1,15 +1,16 @@
 ﻿using System.Net.Http.Json;
-using MyMedia.Client.RCL.Models; // Onde puseste o RegisterDto
+using Microsoft.AspNetCore.Components.Authorization; // ⚠️ Importante para o AuthenticationStateProvider
+using MyMedia.Client.RCL.Models;
 
 namespace MyMedia.Client.RCL.Services
 {
     public class ClientAuthService
     {
         private readonly HttpClient _http;
-        private readonly CustomAuthStateProvider _authStateProvider;
+        // Injetamos a classe genérica para evitar erros de "Service Not Registered"
+        private readonly AuthenticationStateProvider _authStateProvider;
 
-        // Injetamos o HttpClient e o TEU CustomAuthStateProvider
-        public ClientAuthService(HttpClient http, CustomAuthStateProvider authStateProvider)
+        public ClientAuthService(HttpClient http, AuthenticationStateProvider authStateProvider)
         {
             _http = http;
             _authStateProvider = authStateProvider;
@@ -18,23 +19,36 @@ namespace MyMedia.Client.RCL.Services
         // --- FUNÇÃO DE REGISTO ---
         public async Task<bool> RegisterAsync(RegisterDto model)
         {
-            // Envia os dados para a API (AuthController)
             var result = await _http.PostAsJsonAsync("api/auth/register", model);
-
-            // Se devolver 200 OK, correu bem
             return result.IsSuccessStatusCode;
         }
 
         // --- FUNÇÃO DE LOGIN ---
         public async Task<bool> LoginAsync(LoginDto model)
         {
-            var result = await _http.PostAsJsonAsync("api/auth/login", model);
-
-            if (result.IsSuccessStatusCode)
+            try
             {
-                // SEGREDO: Avisar o site que o user entrou!
-                _authStateProvider.NotifyLogin();
-                return true;
+                var result = await _http.PostAsJsonAsync("api/auth/login", model);
+
+                if (result.IsSuccessStatusCode)
+                {
+                    // 1. CORREÇÃO: Temos de ler os dados que a API devolveu!
+                    // O CustomAuthStateProvider precisa de saber o Nome/ID do user.
+                    var userDto = await result.Content.ReadFromJsonAsync<LoginResponseDto>();
+
+                    // 2. CORREÇÃO: Convertemos o provider e passamos os dados
+                    if (_authStateProvider is CustomAuthStateProvider customProvider)
+                    {
+                        // Agora passamos o 'userDto' para dentro da função!
+                        customProvider.NotifyLogin(userDto);
+                    }
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro Login: {ex.Message}");
             }
 
             return false;
@@ -43,8 +57,15 @@ namespace MyMedia.Client.RCL.Services
         // --- FUNÇÃO DE LOGOUT ---
         public async Task LogoutAsync()
         {
+            // Avisa a API para limpar o Cookie (importante para a Web)
             await _http.PostAsync("api/auth/logout", null);
-            _authStateProvider.NotifyLogin(); // Avisa que saiu (para limpar o menu)
+
+            // Avisa a App para limpar a Memória (importante para o Mobile)
+            if (_authStateProvider is CustomAuthStateProvider customProvider)
+            {
+                // CORREÇÃO: Usamos NotifyLogout() e não NotifyLogin()
+                customProvider.NotifyLogout();
+            }
         }
     }
 }

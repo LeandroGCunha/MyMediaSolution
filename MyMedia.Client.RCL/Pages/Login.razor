@@ -1,64 +1,66 @@
-@page "/login"
+Ôªø@page "/login"
+@using MyMedia.Client.RCL.Models
+@using MyMedia.Client.RCL.Services
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using Microsoft.Extensions.Configuration
 
 @inject NavigationManager Nav
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
+@inject IConfiguration Config
 
 <div class="container mt-5">
+
+
+
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-4">
             <div class="card shadow">
                 <div class="card-header bg-primary text-white text-center">
-                    <h3>?? Entrar</h3>
+                    <h3>üîê Entrar</h3>
                 </div>
                 <div class="card-body">
 
-                    @* MENSAGEM DE ERRO *@
-                    @* Se a URL tiver ?error=..., mostramos o alerta *@
-                    @if (!string.IsNullOrEmpty(ErrorCode))
+                    @if (!string.IsNullOrEmpty(mensagemErro))
                     {
-                        @if (ErrorCode == "pendente")
-                        {
-                            <div class="alert alert-warning text-center">
-                                <i class="bi bi-hourglass-split"></i><br />
-                                <strong>Conta Pendente!</strong><br />
-                                O seu registo aguarda aprovaÁ„o de um administrador.
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-danger text-center">
-                                Utilizador ou password incorretos.
-                            </div>
-                        }
+                        <div class="alert alert-danger text-center">@mensagemErro</div>
                     }
 
-                    @* ?? AQUI EST¡ A MUDAN«A CRÕTICA ?? *@
-                    @* 1. Usamos <form> normal (n„o EditForm) *@
-                    @* 2. Action="/account/login" aponta para o Program.cs *@
-                    @* 3. Method="post" È obrigatÛrio *@
-                    <form action="/account/login" method="post">
+                    @* --- WEB (FORMUL√ÅRIO) --- *@
+                    @if (!IsMobile)
+                    {
+                        <form action="/account/login" method="post">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input name="email" type="text" class="form-control" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input name="password" type="password" class="form-control" required />
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Entrar (Web)</button>
+                        </form>
+                    }
 
+                    @* --- MOBILE (C#) --- *@
+                    @if (IsMobile)
+                    {
                         <div class="mb-3">
-                            <label class="form-label">Email / Utilizador</label>
-                            @* O 'name="email"' tem de bater certo com o Program.cs *@
-                            <input name="email" type="text" class="form-control" placeholder="Ex: admin" required />
+                            <label class="form-label">Email</label>
+                            <input @bind="emailModel" class="form-control" placeholder="admin" />
                         </div>
-
                         <div class="mb-3">
-                            <label class="form-label">Palavra-Passe</label>
-                            @* O 'name="password"' tem de bater certo com o Program.cs *@
-                            <input name="password" type="password" class="form-control" placeholder="******" required />
+                            <label class="form-label">Password</label>
+                            <input @bind="passwordModel" type="password" class="form-control" placeholder="******" />
                         </div>
-
-                        <button type="submit" class="btn btn-primary w-100">
-                            Entrar
-                        </button>
-
-                    </form>
+                        <button class="btn btn-primary w-100" @onclick="LoginMobile">Entrar (Mobile)</button>
+                    }
 
                     <div class="mt-3 text-center">
                         <a href="/registar">Criar Conta</a>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -66,8 +68,60 @@
 </div>
 
 @code {
-    // Isto serve apenas para ler se houve erro no login
-    // O Program.cs redireciona para /login?error=true se falhar
+    bool IsMobile = false;
+    string emailModel = "";
+    string passwordModel = "";
+    string mensagemErro = "";
+
     [SupplyParameterFromQuery(Name = "error")]
     public string? ErrorCode { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // 1. TENTATIVA PELA CONFIGURA√á√ÉO (MauiProgram)
+        var configMobile = Config["IsMobile"];
+
+        // Se a config tiver "true", ativa o modo Mobile
+        if (!string.IsNullOrEmpty(configMobile) && configMobile == "true")
+        {
+            IsMobile = true;
+        }
+
+        // 2. SEGURAN√áA EXTRA: Se falhar a config, tenta detetar o sistema operativo
+        // (Isto ajuda no Windows se a config falhar)
+#if ANDROID || IOS || MACCATALYST || WINDOWS
+            // Se estivermos a compilar nativamente, for√ßa true,
+            // a menos que estejas a correr o projeto WEB no PC.
+             IsMobile = true;
+#endif
+
+        if (ErrorCode == "pendente") mensagemErro = "Conta pendente.";
+        if (ErrorCode == "credenciais_invalidas") mensagemErro = "Dados inv√°lidos.";
+    }
+
+    async Task LoginMobile()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/login", new { UserName = emailModel, Password = passwordModel });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var userDto = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+                if (AuthProvider is CustomAuthStateProvider customProvider)
+                {
+                    customProvider.NotifyLogin(userDto);
+                }
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                mensagemErro = "Erro no login mobile.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = "Erro: " + ex.Message;
+        }
+    }
 }
