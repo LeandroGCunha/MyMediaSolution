@@ -52,37 +52,4 @@
 		<ProjectReference Include="..\MyMedia.Client.RCL\MyMedia.Client.RCL.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Content Update="wwwroot\imagens\10.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\11.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\2.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\3.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\4.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\5.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\6.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\7.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\8.png">
-	    <Watch>false</Watch>
-	  </Content>
-	  <Content Update="wwwroot\imagens\9.png">
-	    <Watch>false</Watch>
-	  </Content>
-	</ItemGroup>
-
 </Project>

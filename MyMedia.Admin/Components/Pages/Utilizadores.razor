@@ -3,7 +3,11 @@
 @using MyMedia.Data.Entities
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
 @attribute [Authorize(Roles = "Administrador, Funcionario")]
+
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
@@ -16,7 +20,7 @@
 }
 else
 {
-    <table class="table table-hover align-middle">
+    <table class="table table-hover align-middle shadow-sm">
         <thead class="table-dark">
             <tr>
                 <th>Nome / Email</th>
@@ -29,29 +33,17 @@ else
         <tbody>
             @foreach (var user in listaUtilizadores)
             {
-                // 1. Obter a Role do utilizador desta linha
+                // 1. Descobrir a Role
                 var roleDesteUser = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : "Cliente";
 
-                // 2. Lógica de Segurança (Quem pode editar quem?)
+                // 2. Lógica de Segurança (Quem pode mexer em quem?)
                 bool podeEditar = true;
 
-                // Ninguém se pode editar a si próprio
-                if (user.Id == currentUserId)
-                {
-                    podeEditar = false;
-                }
+                // A: Não posso mexer em mim próprio
+                if (user.Id == currentUserId) podeEditar = false;
 
-                // Se eu NÃO sou Admin (sou Funcionário), NÃO posso mexer em Admins
-                if (!isAdmin && roleDesteUser == "Administrador")
-                {
-                    podeEditar = false;
-                }
-
-                // (Opcional) Se eu sou Funcionário, também não devia mexer noutros Funcionários
-                if (!isAdmin && roleDesteUser == "Funcionario")
-                {
-                    podeEditar = false;
-                }
+                // B: Funcionários não mexem em Admins
+                if (!isAdmin && roleDesteUser == "Administrador") podeEditar = false;
 
                 <tr>
                     <td>
@@ -66,16 +58,13 @@ else
                         }
                         else
                         {
-                            <span class="badge bg-warning text-dark">Pendente</span>
+                            <span class="badge bg-warning text-dark">Pendente/Suspenso</span>
                         }
                     </td>
                     <td>
-                        <span class="badge bg-info text-dark">
-                            @roleDesteUser
-                        </span>
+                        <span class="badge bg-info text-dark">@roleDesteUser</span>
                     </td>
                     <td>
-                        @* 👇 Só mostramos o botão se a variável 'podeEditar' for verdadeira *@
                         @if (podeEditar)
                         {
                             <div class="dropdown position-relative">
@@ -86,9 +75,9 @@ else
                                 </button>
 
                                 <ul class="dropdown-menu @(dropdownAbertoId == user.Id ? "show" : "")"
-                                    style="right: 0; left: auto;">
+                                    style="right: 0; left: auto; z-index: 1050;">
 
-                                    @* 1. ATIVAR / SUSPENDER *@
+                                    @* 1. ESTADO (Ativar/Suspender) *@
                                     <li>
                                         <button class="dropdown-item" @onclick="() => ToggleEstado(user)">
                                             @if (user.IsActive)
@@ -97,49 +86,53 @@ else
                                             }
                                             else
                                             {
-                                                <span><i class="bi bi-check-circle me-2"></i>Aprovar</span>
+                                                <span><i class="bi bi-check-circle me-2"></i>Aprovar/Ativar</span>
                                             }
                                         </button>
                                     </li>
 
                                     <li><hr class="dropdown-divider"></li>
 
-                                    @* 2. PROMOVER (Só Admin vê isto) *@
+                                    @* 2. MUDANÇA DE ROLES (Apenas Admin vê isto) *@
                                     @if (isAdmin)
                                     {
+                                        <li>
+                                            <h6 class="dropdown-header">Mudar Função</h6>
+                                        </li>
                                         <li>
                                             <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Funcionario"))">
                                                 Promover a Funcionário
                                             </button>
                                         </li>
+                                        <li>
+                                            <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Fornecedor"))">
+                                                Mudar para Fornecedor
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Cliente"))">
+                                                Despromover a Cliente
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
                                     }
-
-                                    <li>
-                                        <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Cliente"))">
-                                            Mudar para Cliente
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button class="dropdown-item" @onclick="@(() => MudarRole(user, "Fornecedor"))">
-                                            Mudar para Fornecedor
-                                        </button>
-                                    </li>
-
-                                    <li><hr class="dropdown-divider"></li>
 
                                     @* 3. APAGAR *@
                                     <li>
                                         <button class="dropdown-item text-danger" @onclick="@(() => ApagarUser(user))">
-                                            <i class="bi bi-trash me-2"></i>Apagar
+                                            <i class="bi bi-trash me-2"></i>Apagar Conta
                                         </button>
                                     </li>
                                 </ul>
                             </div>
                         }
-                        else if (roleDesteUser == "Administrador" && !isAdmin)
+                        else if (user.Id == currentUserId)
                         {
-                            @* Visualmente mostra que é protegido *@
-                            <span class="text-muted"><i class="bi bi-shield-lock"></i> Protegido</span>
+                            <span class="text-muted fst-italic small">(És tu)</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted small"><i class="bi bi-lock-fill"></i> Protegido</span>
                         }
                     </td>
                 </tr>
@@ -149,19 +142,20 @@ else
 }
 
 @code {
-    // ... O TEU BLOCO DE CÓDIGO (MANTÉM IGUAL AO ANTERIOR) ...
-    // ... Não precisas de mudar nada no @code, apenas no HTML acima ...
-
     private List<ApplicationUser>? listaUtilizadores;
     private Dictionary<string, string> userRoles = new();
     private string currentUserId = "";
     private bool isAdmin = false;
+
+    // Controla qual dropdown está aberto
     private string? dropdownAbertoId = null;
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. Quem sou eu?
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
+
         currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         isAdmin = user.IsInRole("Administrador");
 
@@ -172,6 +166,7 @@ else
     {
         listaUtilizadores = await UserManager.Users.ToListAsync();
         userRoles.Clear();
+
         foreach (var u in listaUtilizadores)
         {
             var roles = await UserManager.GetRolesAsync(u);
@@ -179,26 +174,31 @@ else
         }
     }
 
+    // Abre/Fecha o menu de um user específico
     private void ToggleDropdown(string userId)
     {
-        if (dropdownAbertoId == userId) dropdownAbertoId = null;
-        else dropdownAbertoId = userId;
+        if (dropdownAbertoId == userId) dropdownAbertoId = null; // Fecha se já estiver aberto
+        else dropdownAbertoId = userId; // Abre o novo
     }
 
     private async Task ToggleEstado(ApplicationUser user)
     {
         user.IsActive = !user.IsActive;
         await UserManager.UpdateAsync(user);
-        dropdownAbertoId = null;
+        dropdownAbertoId = null; // Fecha menu
     }
 
-    private async Task MudarRole(ApplicationUser user, string role)
+    private async Task MudarRole(ApplicationUser user, string novaRole)
     {
         var rolesAtuais = await UserManager.GetRolesAsync(user);
-        if (rolesAtuais.Any()) await UserManager.RemoveFromRolesAsync(user, rolesAtuais);
-        await UserManager.AddToRoleAsync(user, role);
+        if (rolesAtuais.Any())
+        {
+            await UserManager.RemoveFromRolesAsync(user, rolesAtuais);
+        }
+        await UserManager.AddToRoleAsync(user, novaRole);
+
         dropdownAbertoId = null;
-        await CarregarDados();
+        await CarregarDados(); // Recarrega para atualizar a tabela visualmente
     }
 
     private async Task ApagarUser(ApplicationUser user)
